@@ -5,95 +5,167 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"log/slog"
 	"net/http"
-	"unicode/utf8"
+	"net/url"
+	"strings"
 )
 
-type Session struct {
-	Id string `json::"id"`
+func (t SessionPromptJSONBody_Parts_Item) MarshalJSON() ([]byte, error) {
+	return t.union.MarshalJSON()
 }
 
-type Message struct {
-	Type string `json:"type"`
-	Text string `json:"text"`
+func (t *SessionPromptJSONBody_Parts_Item) UnmarshalJSON(b []byte) error {
+	return t.union.UnmarshalJSON(b)
 }
 
-func (c *openCodeClient) createSession() string {
-	slog.Info("Req: /session (create)")
-	url := fmt.Sprintf("%s/session", c.baseUrl)
-	body := map[string]string{
-		"title": fmt.Sprintf("analyze_%d", c.requestCounter),
-	}
-	encoded_body, err := json.Marshal(body)
-	if err != nil {
-		log.Fatal("Json encoding failed in session creation")
-	}
-	resp, err := c.httpClient.Post(url, "application/json", bytes.NewReader(encoded_body))
-	if err != nil {
-		log.Fatal("Session creation failed")
-	}
+func (t *SessionPromptJSONBody_Parts_Item) FromTextPartInput(v TextPartInput) error {
+	return marshalUnionValue(&t.union, v)
+}
+
+func (c *openCodeClient) createSession() (Session, error) {
+	slog.Info("req /session", "action", "create")
+
+	title := fmt.Sprintf("analyze_%d", c.requestCounter)
+	body := SessionCreateJSONBody{Title: &title}
+
 	var session Session
-	error := json.NewDecoder(resp.Body).Decode(&session)
-	if error != nil {
-		log.Fatal("Json response decoding failed")
+	if err := c.doJSON(http.MethodPost, "/session", body, &session); err != nil {
+		return Session{}, err
 	}
-	return session.Id
+
+	c.requestCounter++
+	return session, nil
 }
 
-func (c *openCodeClient) deleteSession(id string) bool {
-	slog.Info("Req: /session (delete)")
-	url := fmt.Sprintf("%s/session/%s", c.baseUrl, id)
+func (c *openCodeClient) deleteSession(id string) (bool, error) {
+	slog.Info("req /session/{sessionID}", "action", "delete", "session_id", id)
 
-	req, err := http.NewRequest("DELETE", url, nil)
-	if err != nil {
-		log.Fatal("Error creating request:", err)
+	var deleted bool
+	path := fmt.Sprintf("/session/%s", url.PathEscape(id))
+	if err := c.doJSON(http.MethodDelete, path, nil, &deleted); err != nil {
+		return false, err
 	}
-	client := c.httpClient
-	resp, err := client.Do(req)
+
+	return deleted, nil
+}
+
+func (c *openCodeClient) sendMessage(id string, input string) (PromptResult, error) {
+	slog.Info("req /session/{sessionID}/message", "action", "prompt", "session_id", id)
+
+	part, err := newTextPromptPart(input)
 	if err != nil {
-		log.Fatal("Error sending request:", err)
+		return PromptResult{}, err
+	}
+
+	body := SessionPromptJSONBody{
+		Parts: []SessionPromptJSONBody_Parts_Item{part},
+	}
+
+	path := fmt.Sprintf("/session/%s/message", url.PathEscape(id))
+	var result PromptResult
+	if err := c.doJSON(http.MethodPost, path, body, &result); err != nil {
+		return PromptResult{}, err
+	}
+
+	return result, nil
+}
+
+func newTextPromptPart(input string) (SessionPromptJSONBody_Parts_Item, error) {
+	textPart := TextPartInput{
+		Text: input,
+		Type: "text",
+	}
+
+	var part SessionPromptJSONBody_Parts_Item
+	if err := part.FromTextPartInput(textPart); err != nil {
+		return SessionPromptJSONBody_Parts_Item{}, fmt.Errorf("encode text part: %w", err)
+	}
+
+	return part, nil
+}
+
+func marshalUnionValue(dst *json.RawMessage, value any) error {
+	encoded, err := json.Marshal(value)
+	if err != nil {
+		return err
+	}
+
+	*dst = encoded
+	return nil
+}
+
+func (c *openCodeClient) doJSON(method, path string, requestBody any, responseBody any) error {
+	endpoint, err := c.resolveURL(path)
+	if err != nil {
+		return err
+	}
+
+	var bodyReader io.Reader
+	if requestBody != nil {
+		encodedBody, err := json.Marshal(requestBody)
+		if err != nil {
+			return fmt.Errorf("marshal %s %s request: %w", method, endpoint, err)
+		}
+		bodyReader = bytes.NewReader(encodedBody)
+	}
+
+	req, err := http.NewRequest(method, endpoint, bodyReader)
+	if err != nil {
+		return fmt.Errorf("create %s %s request: %w", method, endpoint, err)
+	}
+
+	req.Header.Set("Accept", "application/json")
+	if requestBody != nil {
+		req.Header.Set("Content-Type", "application/json")
+	}
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("send %s %s request: %w", method, endpoint, err)
 	}
 	defer resp.Body.Close()
-	var ok bool
-	if err := json.NewDecoder(resp.Body).Decode(&ok); err != nil {
-		log.Fatal(err)
+
+	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
+		return unexpectedStatusError(method, endpoint, resp)
 	}
-	return ok
+
+	if responseBody == nil {
+		_, _ = io.Copy(io.Discard, resp.Body)
+		return nil
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(responseBody); err != nil {
+		return fmt.Errorf("decode %s %s response: %w", method, endpoint, err)
+	}
+
+	return nil
 }
 
-func (c *openCodeClient) sendMessage(id string, input string) {
-	slog.Info("Req: /session/:id/message (post)")
-	url := fmt.Sprintf("%s/session/%s/message", c.baseUrl, id)
-	msg := Message{Type: "text", Text: input}
-	encoded_body, err := json.Marshal(map[string][]Message{"parts": []Message{msg}})
+func (c *openCodeClient) resolveURL(path string) (string, error) {
+	baseURL, err := url.Parse(c.baseURL)
 	if err != nil {
-		log.Fatal("Failed to encode message")
+		return "", fmt.Errorf("parse base url %q: %w", c.baseURL, err)
 	}
-	resp, err := c.httpClient.Post(url, "application/json", bytes.NewReader(encoded_body))
-	debugByteArray(resp.Body)
+
+	reference, err := url.Parse(path)
+	if err != nil {
+		return "", fmt.Errorf("parse path %q: %w", path, err)
+	}
+
+	return baseURL.ResolveReference(reference).String(), nil
 }
 
-func debugByteArray(r io.Reader) {
-	data, err := io.ReadAll(r)
+func unexpectedStatusError(method, endpoint string, resp *http.Response) error {
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		log.Fatal("Failed to parse byte array", err)
+		return fmt.Errorf("%s %s returned %s and response body could not be read: %w", method, endpoint, resp.Status, err)
 	}
-	if json.Valid(data) {
-		fmt.Println("byte array is valid json")
-		var out bytes.Buffer
-		if err := json.Indent(&out, data, "", "  "); err != nil {
-			log.Fatal(err)
-		}
-		fmt.Println(out.String())
-		return
+
+	message := strings.TrimSpace(string(body))
+	if message == "" {
+		return fmt.Errorf("%s %s returned %s", method, endpoint, resp.Status)
 	}
-	if utf8.Valid(data) {
-		fmt.Println("byte array is utf8 encoded")
-		fmt.Println(string(data))
-		return
-	}
-	fmt.Println("byte array is neither json nor utf-8 encoded")
-	return
+
+	return fmt.Errorf("%s %s returned %s: %s", method, endpoint, resp.Status, message)
 }

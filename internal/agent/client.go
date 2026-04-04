@@ -1,40 +1,67 @@
 package agent
 
 import (
-	"fmt"
-	"io"
-	"net/http"
 	"log/slog"
+	"net/http"
+	"encoding/json"
+	"fmt"
 )
 
-func (c *openCodeClient) CheckHealth() (string, error) {
-	slog.Info("Req: /check_health")
-	resp, err := c.httpClient.Get(fmt.Sprintf("%s/global/health", c.baseUrl))
-	if err != nil {
-		return "", err
-	}
-	defer resp.Body.Close()
+const defaultBaseURL = "http://localhost:4096"
 
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return "", err
+func (c *openCodeClient) CheckHealth() (HealthStatus, error) {
+	slog.Info("req /global/health")
+
+	var health HealthStatus
+	if err := c.doJSON(http.MethodGet, "/global/health", nil, &health); err != nil {
+		return HealthStatus{}, err
 	}
-	return string(body), nil
+
+	return health, nil
 }
 
 func (c *openCodeClient) EvaluateInput(input string) {
-	sessionId := c.createSession()
-	c.sendMessage(sessionId, input)
+
+	res, err := c.Prompt(input) 
+	if err != nil {
+		slog.Error("prompt failed", "error", err)
+		return
+	}
+
+	b, err := json.MarshalIndent(res, "", " ")
+	if err != nil {
+		slog.Error("prompt failed", "error", err)
+		return
+	}
+	fmt.Println(string(b))
+
+	return
+}
+
+func (c *openCodeClient) Prompt(input string) (PromptResult, error) {
+	session, err := c.createSession()
+	if err != nil {
+		return PromptResult{}, err
+	}
+
+	return c.sendMessage(session.Id, input)
 }
 
 func NewOpenCodeClient(opts ClientOptions) *openCodeClient {
-	slog.Info("Initializing new OpenCode client")
-	baseUrl := opts.BaseUrl
-	if baseUrl == "" {
-		baseUrl = "http://localhost:4096"
+	slog.Info("initializing opencode client")
+
+	baseURL := opts.BaseUrl
+	if baseURL == "" {
+		baseURL = defaultBaseURL
 	}
+
+	httpClient := opts.HTTPClient
+	if httpClient == nil {
+		httpClient = http.DefaultClient
+	}
+
 	return &openCodeClient{
-		httpClient: http.Client{},
-		baseUrl:    baseUrl,
+		httpClient: httpClient,
+		baseURL:    baseURL,
 	}
 }

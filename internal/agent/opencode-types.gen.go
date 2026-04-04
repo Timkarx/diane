@@ -2589,7 +2589,7 @@ type SymbolSource struct {
 
 // SyncEvent defines model for SyncEvent.
 type SyncEvent struct {
-	Payload SyncEvent `json:"payload"`
+	Payload interface{} `json:"payload"`
 }
 
 // TextPart defines model for TextPart.

@@ -87,6 +87,7 @@ func generate(specLocation, configPath, patchedSpecPath string) error {
 
 	document = normalize(document)
 	patchOpenAPI31(document)
+	patchKnownSchemaIssues(document)
 
 	patchedPath, cleanup, err := writePatchedSpec(document, patchedSpecPath)
 	if err != nil {
@@ -227,6 +228,49 @@ func patchOpenAPI31(value any) {
 			patchOpenAPI31(entry)
 		}
 	}
+}
+
+func patchKnownSchemaIssues(document any) {
+	root, ok := document.(map[string]any)
+	if !ok {
+		return
+	}
+
+	components, ok := root["components"].(map[string]any)
+	if !ok {
+		return
+	}
+
+	schemas, ok := components["schemas"].(map[string]any)
+	if !ok {
+		return
+	}
+
+	patchSelfReferentialPayloadSchema(schemas, "SyncEvent")
+}
+
+func patchSelfReferentialPayloadSchema(schemas map[string]any, schemaName string) {
+	schema, ok := schemas[schemaName].(map[string]any)
+	if !ok {
+		return
+	}
+
+	properties, ok := schema["properties"].(map[string]any)
+	if !ok {
+		return
+	}
+
+	payload, ok := properties["payload"].(map[string]any)
+	if !ok {
+		return
+	}
+
+	ref, ok := payload["$ref"].(string)
+	if !ok || ref != "#/components/schemas/"+schemaName {
+		return
+	}
+
+	properties["payload"] = map[string]any{}
 }
 
 func patchExclusiveBound(schema map[string]any, exclusiveKey, boundKey string) {

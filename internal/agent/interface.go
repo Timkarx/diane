@@ -2,16 +2,28 @@ package agent
 
 import "net/http"
 
+type HealthStatus struct {
+	Healthy bool   `json:"healthy"`
+	Version string `json:"version"`
+}
+
+type PromptResult struct {
+	Info  AssistantMessage `json:"info"`
+	Parts []Part           `json:"parts"`
+}
+
 type Client interface {
-	CheckHealth() (string error)
+	CheckHealth() (HealthStatus, error)
+	Prompt(input string) (PromptResult, error)
 }
 
 type ClientOptions struct {
-	BaseUrl string
+	BaseUrl    string
+	HTTPClient *http.Client
 }
 
 type openCodeClient struct {
-	httpClient http.Client
-	baseUrl string
+	httpClient     *http.Client
+	baseURL        string
 	requestCounter int
 }
