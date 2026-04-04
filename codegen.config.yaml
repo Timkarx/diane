@@ -1,0 +1,4 @@
+package: agent
+output: ./internal/agent/opencode-types.gen.go
+generate:
+  models: true

@@ -8,5 +8,5 @@ import (
 func main() {
 	clientOpts := agent.ClientOptions{}
 	client := agent.NewOpenCodeClient(clientOpts)
-	client.EvaluateInput("Hello how are you?")
+	client.EvaluateInput("What gurantees does c++ give about function arg evaluation?")
 }
