@@ -1,10 +1,10 @@
 package agent
 
 import (
-	"log/slog"
-	"net/http"
 	"encoding/json"
 	"fmt"
+	"log/slog"
+	"net/http"
 )
 
 const defaultBaseURL = "http://localhost:4096"
@@ -22,19 +22,45 @@ func (c *openCodeClient) CheckHealth() (HealthStatus, error) {
 
 func (c *openCodeClient) EvaluateInput(input string) {
 
-	res, err := c.Prompt(input) 
+	res, err := c.Prompt(input)
 	if err != nil {
 		slog.Error("prompt failed", "error", err)
 		return
 	}
 
-	b, err := json.MarshalIndent(res, "", " ")
-	if err != nil {
-		slog.Error("prompt failed", "error", err)
-		return
-	}
-	fmt.Println(string(b))
+	for _, part := range res.Parts {
+		var meta struct {
+			Type string `json:"type"`
+		}
+		if err := json.Unmarshal(part.union, &meta); err != nil {
+			slog.Error("decoding response part failed", "error", err)
+			continue
+		}
 
+		switch meta.Type {
+		case "text":
+			textPart, err := part.AsTextPart()
+			if err != nil {
+				slog.Error("decode text part failed", "error", err)
+				continue
+			}
+			fmt.Println("text:", textPart.Text)
+		case "tool":
+			toolPart, err := part.AsToolPart()
+			if err != nil {
+				slog.Error("decode tool part failed", "error", err)
+				continue
+			}
+			fmt.Printf("tool: %+v\n", toolPart)
+		case "step-start":
+			stepPart, err := part.AsStepStartPart()
+			if err != nil {
+				slog.Error("decode step start failed", "error", err)
+				continue
+			}
+			fmt.Printf("step start: %+v\n", stepPart)
+		}
+	}
 	return
 }
 
