@@ -13,4 +13,5 @@ type ClientOptions struct {
 type openCodeClient struct {
 	httpClient http.Client
 	baseUrl string
+	requestCounter int
 }
