@@ -9,26 +9,9 @@ import (
 
 const defaultBaseURL = "http://localhost:4096"
 
-func (c *openCodeClient) CheckHealth() (HealthStatus, error) {
-	slog.Info("req /global/health")
-
-	var health HealthStatus
-	if err := c.doJSON(http.MethodGet, "/global/health", nil, &health); err != nil {
-		return HealthStatus{}, err
-	}
-
-	return health, nil
-}
-
-func (c *openCodeClient) EvaluateInput(input string) {
-
-	res, err := c.Prompt(input)
-	if err != nil {
-		slog.Error("prompt failed", "error", err)
-		return
-	}
-
-	for _, part := range res.Parts {
+func (p PromptResult) AsPlainText() []string {
+	var text []string
+	for _, part := range p.Parts {
 		var meta struct {
 			Type string `json:"type"`
 		}
@@ -44,6 +27,7 @@ func (c *openCodeClient) EvaluateInput(input string) {
 				slog.Error("decode text part failed", "error", err)
 				continue
 			}
+			text = append(text, textPart.Text)
 			fmt.Println("text:", textPart.Text)
 		case "tool":
 			toolPart, err := part.AsToolPart()
@@ -61,16 +45,28 @@ func (c *openCodeClient) EvaluateInput(input string) {
 			fmt.Printf("step start: %+v\n", stepPart)
 		}
 	}
-	return
+	return text
+}
+
+func (c *openCodeClient) CheckHealth() (HealthStatus, error) {
+	slog.Info("req /global/health")
+
+	var health HealthStatus
+	if err := c.doJSON(http.MethodGet, "/global/health", nil, &health); err != nil {
+		return HealthStatus{}, err
+	}
+
+	return health, nil
 }
 
 func (c *openCodeClient) Prompt(input string) (PromptResult, error) {
-	session, err := c.createSession()
+
+	res, err := c.prompt(input)
 	if err != nil {
+		slog.Error("prompt failed", "error", err)
 		return PromptResult{}, err
 	}
-
-	return c.sendMessage(session.Id, input)
+	return res, nil
 }
 
 func NewOpenCodeClient(opts ClientOptions) *openCodeClient {

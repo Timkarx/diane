@@ -71,6 +71,16 @@ func (c *openCodeClient) sendMessage(id string, input string) (PromptResult, err
 	return result, nil
 }
 
+func (c *openCodeClient) prompt(input string) (PromptResult, error) {
+	session, err := c.createSession()
+	if err != nil {
+		return PromptResult{}, err
+	}
+
+	return c.sendMessage(session.Id, input)
+}
+
+
 func newTextPromptPart(input string) (SessionPromptJSONBody_Parts_Item, error) {
 	textPart := TextPartInput{
 		Text: input,
