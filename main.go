@@ -34,7 +34,7 @@ func main() {
 	if err != nil {
 		os.Exit(1)
 	}
-	_ , err = bot.SendMessage(strings.Join(res.AsPlainText(), " "))
+	err = bot.SendMessage(strings.Join(res.AsPlainText(), " "))
 	if err != nil {
 		log.Fatal(err)
 	}

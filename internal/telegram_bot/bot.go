@@ -2,8 +2,8 @@ package telegram_bot
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 )
 
@@ -28,9 +28,8 @@ func NewTelegramBot(token string, chat_id string) TelegramBot {
 	return bot
 }
 
-func (b *TelegramBot) SendMessage(m string) (bool, error) {
+func (b *TelegramBot) SendMessage(m string) error {
 	payload := fmt.Sprintf(`{ "chat_id": "%s", "text": "%s"}`, b.chat_id, m)
-	fmt.Println(payload)
 	res, err := b.httpClient.Post(
 		b.url+"/sendMessage",
 		"application/json",
@@ -38,17 +37,23 @@ func (b *TelegramBot) SendMessage(m string) (bool, error) {
 	)
 
 	if err != nil {
-		return false, err
+		return err
 	}
 	defer res.Body.Close()
 
-	body, err := io.ReadAll(res.Body)
+	var tgResponse struct {
+		Ok          bool           `json:"ok"`
+		Result      map[string]any `json:"result,omitempty"`
+		ErrorCode   int            `json:"error_code,omitempty"`
+		Description string         `json:"description,omitempty"`
+	}
+	err = json.NewDecoder(res.Body).Decode(&tgResponse)
 	if err != nil {
-		return false, err
+		return err
+	}
+	if !tgResponse.Ok {
+		return fmt.Errorf("telegram error %d: %s", tgResponse.ErrorCode, tgResponse.Description)
 	}
 
-	fmt.Printf("telegram response status: %s\n", res.Status)
-	fmt.Printf("telegram response body: %s\n", string(body))
-
-	return true, nil
+	return nil
 }
