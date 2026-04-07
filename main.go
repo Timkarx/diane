@@ -5,10 +5,9 @@ import (
 	"diane/internal/telegram_bot"
 	"fmt"
 	"github.com/joho/godotenv"
-	"log"
 	"os"
 	"runtime"
-	"strings"
+	"log"
 )
 
 func setup() {
@@ -25,13 +24,18 @@ func main() {
 	bot_token := os.Getenv("TELEGRAM_BOT_TOKEN")
 	chat_id := os.Getenv("TELEGRAM_CHAT_ID")
 
-	bot := telegram_bot.NewTelegramBot(bot_token, chat_id)
+	_ = telegram_bot.NewTelegramBot(bot_token, chat_id)
 
 	clientOpts := agent.ClientOptions{}
 	client := agent.NewOpenCodeClient(clientOpts)
 
+	prompt_bytes, err := os.ReadFile("test/bad_prompt.md")
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	msg := agent.ClientMessage{
-		Text: "What gurantees does c++ give about function arg evaluation?",
+		Text: string(prompt_bytes),
 		Format: agent.JSONSchemaFormat{
 			Schema: agent.JSONSchema{
 				"type": "object",
@@ -53,10 +57,6 @@ func main() {
 	if err != nil {
 		os.Exit(1)
 	}
-	err = bot.SendMessage(strings.Join(res.AsPlainText(), " "))
-	if err != nil {
-		log.Fatal(err)
-	}
-
+	res.DebugPrint()
 	os.Exit(0)
 }
