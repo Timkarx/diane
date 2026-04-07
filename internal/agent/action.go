@@ -4,6 +4,7 @@ type Actionable interface {
 	Schema() JSONSchema
 	ShouldAct() bool
 	Validate() error
+	Summarize() string
 }
 
 type Unstructured struct{}
@@ -18,6 +19,10 @@ func (Unstructured) ShouldAct() bool {
 
 func (Unstructured) Validate() error {
 	return nil
+}
+
+func (Unstructured) Summarize() string {
+	return ""
 }
 
 type ListingDecision struct {
@@ -49,4 +54,8 @@ func (d ListingDecision) ShouldAct() bool {
 
 func (ListingDecision) Validate() error {
 	return nil
+}
+
+func (d ListingDecision) Summarize() string {
+	return d.Summary
 }

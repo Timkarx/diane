@@ -24,7 +24,7 @@ func main() {
 	bot_token := os.Getenv("TELEGRAM_BOT_TOKEN")
 	chat_id := os.Getenv("TELEGRAM_CHAT_ID")
 
-	_ = telegram_bot.NewTelegramBot(bot_token, chat_id)
+	bot := telegram_bot.NewTelegramBot(bot_token, chat_id)
 
 	clientOpts := agent.ClientOptions{}
 	client := agent.NewOpenCodeClient[agent.ListingDecision](clientOpts)
@@ -39,6 +39,13 @@ func main() {
 	if err != nil {
 		os.Exit(1)
 	}
-	res.DebugPrint()
+
+	callback := func(actionable agent.ListingDecision) {
+		bot.SendMessage(actionable.Summarize())
+	}
+
+	agent.ExecuteHandler(res, callback)
+
+
 	os.Exit(0)
 }
