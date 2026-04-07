@@ -9,8 +9,7 @@ import (
 
 func New() http.Handler {
 	mux := http.NewServeMux()
-	clientOpts := agent.ClientOptions{}
-	client := agent.NewOpenCodeClient(clientOpts)
+	client := agent.NewOpenCodeClient(agent.ClientOptions{})
 
 	mux.HandleFunc("GET /health", func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, 200, map[string]any{
