@@ -27,7 +27,7 @@ func (c *openCodeClient[T]) Prompt(message ClientMessage) (PromptResult[T], erro
 	return res, nil
 }
 
-func NewOpenCodeClient[T any](opts ClientOptions) *openCodeClient[T] {
+func NewOpenCodeClient[T Actionable](opts ClientOptions) *openCodeClient[T] {
 	slog.Info("initializing opencode client")
 
 	baseURL := opts.BaseUrl

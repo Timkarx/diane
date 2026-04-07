@@ -125,7 +125,7 @@ func requireLiveBackend(t *testing.T) {
 		t.Skip("skipping live backend integration test in short mode")
 	}
 
-	client := agent.NewOpenCodeClient(agent.ClientOptions{})
+	client := agent.NewOpenCodeClient[agent.Unstructured](agent.ClientOptions{})
 	health, err := client.CheckHealth()
 	if err != nil {
 		t.Skipf("live backend unavailable on http://localhost:4096: %v", err)

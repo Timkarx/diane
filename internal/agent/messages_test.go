@@ -8,7 +8,7 @@ import (
 )
 
 func TestPromptResultAsPlainTextIgnoresNonTextParts(t *testing.T) {
-	result := PromptResult{
+	result := PromptResult[Unstructured]{
 		Parts: []Part{
 			mustPart(t, `{"id":"text-1","messageID":"msg-1","sessionID":"session-1","text":"hello","type":"text"}`),
 			mustPart(t, `{"id":"tool-1","callID":"call-1","messageID":"msg-1","sessionID":"session-1","state":{"status":"pending"},"tool":"bash","type":"tool"}`),
@@ -30,7 +30,7 @@ func TestPromptResultAsPlainTextIgnoresNonTextParts(t *testing.T) {
 }
 
 func TestPromptResultDebugPrintPrettyPrintsAllParts(t *testing.T) {
-	result := PromptResult{
+	result := PromptResult[Unstructured]{
 		Info: AssistantMessage{
 			Agent:      "planner",
 			Id:         "msg-1",

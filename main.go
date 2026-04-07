@@ -27,7 +27,7 @@ func main() {
 	_ = telegram_bot.NewTelegramBot(bot_token, chat_id)
 
 	clientOpts := agent.ClientOptions{}
-	client := agent.NewOpenCodeClient(clientOpts)
+	client := agent.NewOpenCodeClient[agent.ListingDecision](clientOpts)
 
 	prompt_bytes, err := os.ReadFile("test/good_prompt.md")
 	if err != nil {

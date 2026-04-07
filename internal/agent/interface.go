@@ -8,11 +8,10 @@ type HealthStatus struct {
 }
 
 type ClientMessage struct {
-	Text   string
-	Format ResponseFormat
+	Text string
 }
 
-type Client[T any] interface {
+type Client[T Actionable] interface {
 	CheckHealth() (HealthStatus, error)
 	Prompt(message ClientMessage) (PromptResult[T], error)
 }
@@ -22,7 +21,7 @@ type ClientOptions struct {
 	HTTPClient *http.Client
 }
 
-type openCodeClient[T any] struct {
+type openCodeClient[T Actionable] struct {
 	httpClient     *http.Client
 	baseURL        string
 	requestCounter int

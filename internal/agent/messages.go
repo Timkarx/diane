@@ -2,73 +2,62 @@ package agent
 
 import (
 	"encoding/json"
-	"fmt"
 	"errors"
+	"fmt"
 	"log/slog"
 )
 
 var ErrNoStructuredOutput = errors.New("response did not include structured output")
 
-type PromptResult[T any] struct {
+type PromptResult[T Actionable] struct {
 	Info  AssistantMessage `json:"info"`
 	Parts []Part           `json:"parts"`
+
+	structured    T
+	hasStructured bool
 }
 
-type ResponseFormat interface {
-	json.Marshaler
+func (p *PromptResult[T]) UnmarshalJSON(data []byte) error {
+	var payload struct {
+		Info  json.RawMessage `json:"info"`
+		Parts []Part          `json:"parts"`
+	}
+	if err := json.Unmarshal(data, &payload); err != nil {
+		return err
+	}
+
+	if len(payload.Info) > 0 {
+		if err := json.Unmarshal(payload.Info, &p.Info); err != nil {
+			return fmt.Errorf("decode response info: %w", err)
+		}
+
+		var structured struct {
+			Structured json.RawMessage `json:"structured"`
+		}
+		if err := json.Unmarshal(payload.Info, &structured); err != nil {
+			return fmt.Errorf("decode structured output metadata: %w", err)
+		}
+
+		if len(structured.Structured) > 0 && string(structured.Structured) != "null" {
+			if err := json.Unmarshal(structured.Structured, &p.structured); err != nil {
+				return fmt.Errorf("decode structured output: %w", err)
+			}
+			p.hasStructured = true
+			p.Info.Structured = p.structured
+		}
+	}
+
+	p.Parts = payload.Parts
+	return nil
 }
 
-type JSONSchemaFormat struct {
-	Schema     JSONSchema
-	RetryCount int
-}
-
-func (f JSONSchemaFormat) MarshalJSON() ([]byte, error) {
-	if len(f.Schema) == 0 {
-		return nil, errors.New("json schema format requires a schema")
+func (p PromptResult[T]) Structured() (T, error) {
+	if !p.hasStructured {
+		var zero T
+		return zero, ErrNoStructuredOutput
 	}
 
-	payload := struct {
-		RetryCount *int       `json:"retryCount,omitempty"`
-		Schema     JSONSchema `json:"schema"`
-		Type       string     `json:"type"`
-	}{
-		Schema: f.Schema,
-		Type:   "json_schema",
-	}
-
-	if f.RetryCount > 0 {
-		payload.RetryCount = &f.RetryCount
-	}
-
-	return json.Marshal(payload)
-}
-
-func (p PromptResult[T]) StructuredJSON() (json.RawMessage, error) {
-	if p.Info.Structured == nil {
-		return nil, ErrNoStructuredOutput
-	}
-
-	encoded, err := json.Marshal(p.Info.Structured)
-	if err != nil {
-		return nil, fmt.Errorf("marshal structured output: %w", err)
-	}
-
-	return encoded, nil
-}
-
-func (p PromptResult[T]) DecodeStructured(dst any) (T, error) {
-	var value T
-	encoded, err := p.StructuredJSON()
-	if err != nil {
-		return value, err
-	}
-
-	if err := json.Unmarshal(encoded, &value); err != nil {
-		return value, fmt.Errorf("decode structured output: %w", err)
-	}
-
-	return value, nil
+	return p.structured, nil
 }
 
 func (p PromptResult[T]) AsPlainText() []string {
@@ -117,20 +106,5 @@ func (p PromptResult[T]) DebugPrint() {
 func AnalyzeApartementListingPrompt(listing string) ClientMessage {
 	return ClientMessage{
 		Text: listing,
-		Format: JSONSchemaFormat{
-			Schema: JSONSchema{
-				"type": "object",
-				"properties": map[string]any{
-					"should_notify": map[string]any{
-						"type":        "boolean",
-						"desctiption": "true if this item fits all the specified criteria",
-					},
-					"summary": map[string]any{
-						"type":        "string",
-						"description": "Short summary of the listing, if applicable",
-					},
-				},
-			},
-		},
 	}
 }

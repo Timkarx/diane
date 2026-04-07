@@ -47,19 +47,20 @@ func newTextPromptPart(input string) (SessionPromptJSONBody_Parts_Item, error) {
 	return part, nil
 }
 
-func newOutputFormat(format ResponseFormat) (*OutputFormat, error) {
-	if format == nil {
+func newOutputFormat[T Actionable]() (*OutputFormat, error) {
+	var action T
+	schema := action.Schema()
+	if len(schema) == 0 {
 		return nil, nil
 	}
 
-	encoded, err := format.MarshalJSON()
-	if err != nil {
-		return nil, fmt.Errorf("marshal response format: %w", err)
-	}
-
 	var outputFormat OutputFormat
-	if err := outputFormat.UnmarshalJSON(encoded); err != nil {
-		return nil, fmt.Errorf("decode response format: %w", err)
+	err := outputFormat.FromOutputFormatJsonSchema(OutputFormatJsonSchema{
+		Schema: schema,
+		Type:   "json_schema",
+	})
+	if err != nil {
+		return nil, fmt.Errorf("encode response format: %w", err)
 	}
 
 	return &outputFormat, nil
@@ -104,7 +105,7 @@ func (c *openCodeClient[T]) sendMessage(id string, message ClientMessage) (Promp
 		Parts: []SessionPromptJSONBody_Parts_Item{part},
 	}
 
-	format, err := newOutputFormat(message.Format)
+	format, err := newOutputFormat[T]()
 	if err != nil {
 		return PromptResult[T]{}, err
 	}

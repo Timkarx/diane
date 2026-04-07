@@ -1,22 +1,18 @@
 package agent
 
-import (
-	"log/slog"
-)
+type Callback[T Actionable] func(T)
 
-type Callback func()
-
-func ExecuteHandler(r PromptResult, callback func(ListingDecision)) error {
-	decision, err := DecodeStructured[ListingDecision](r)
+func ExecuteHandler[T Actionable](r PromptResult[T], callback Callback[T]) error {
+	action, err := r.Structured()
 	if err != nil {
 		return err
 	}
-	if err := decision.Validate(); err != nil {
+	if err := action.Validate(); err != nil {
 		return err
 	}
-	if !decision.ShouldNotify {
+	if !action.ShouldAct() {
 		return nil
 	}
-	callback(decision)
+	callback(action)
 	return nil
 }
