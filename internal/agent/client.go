@@ -28,7 +28,6 @@ func (p PromptResult) AsPlainText() []string {
 				continue
 			}
 			text = append(text, textPart.Text)
-			fmt.Println("text:", textPart.Text)
 		case "tool":
 			toolPart, err := part.AsToolPart()
 			if err != nil {

@@ -1,3 +1,4 @@
 .opencode
 # swagger ui for locally inspecting opencode api
 swagger-ui.html
+.env
