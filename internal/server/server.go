@@ -28,7 +28,7 @@ func New() http.Handler {
 		}
 
 		// 2. Pass it to the client
-		response, err := client.Prompt(payload.Text)
+		response, err := client.Prompt(agent.ClientMessage{Text: payload.Text})
 		if err != nil {
 			writeJSON(w, 500, map[string]any{
 				"error": "Internal error",

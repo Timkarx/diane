@@ -12,9 +12,14 @@ type PromptResult struct {
 	Parts []Part           `json:"parts"`
 }
 
+type ClientMessage struct {
+	Text   string
+	Format ResponseFormat
+}
+
 type Client interface {
 	CheckHealth() (HealthStatus, error)
-	Prompt(input string) (PromptResult, error)
+	Prompt(message ClientMessage) (PromptResult, error)
 }
 
 type ClientOptions struct {

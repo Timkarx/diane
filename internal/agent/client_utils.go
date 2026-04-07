@@ -11,6 +11,16 @@ import (
 	"strings"
 )
 
+func marshalUnionValue(dst *json.RawMessage, value any) error {
+	encoded, err := json.Marshal(value)
+	if err != nil {
+		return err
+	}
+
+	*dst = encoded
+	return nil
+}
+
 func (t SessionPromptJSONBody_Parts_Item) MarshalJSON() ([]byte, error) {
 	return t.union.MarshalJSON()
 }
@@ -21,6 +31,38 @@ func (t *SessionPromptJSONBody_Parts_Item) UnmarshalJSON(b []byte) error {
 
 func (t *SessionPromptJSONBody_Parts_Item) FromTextPartInput(v TextPartInput) error {
 	return marshalUnionValue(&t.union, v)
+}
+
+func newTextPromptPart(input string) (SessionPromptJSONBody_Parts_Item, error) {
+	textPart := TextPartInput{
+		Text: input,
+		Type: "text",
+	}
+
+	var part SessionPromptJSONBody_Parts_Item
+	if err := part.FromTextPartInput(textPart); err != nil {
+		return SessionPromptJSONBody_Parts_Item{}, fmt.Errorf("encode text part: %w", err)
+	}
+
+	return part, nil
+}
+
+func newOutputFormat(format ResponseFormat) (*OutputFormat, error) {
+	if format == nil {
+		return nil, nil
+	}
+
+	encoded, err := format.MarshalJSON()
+	if err != nil {
+		return nil, fmt.Errorf("marshal response format: %w", err)
+	}
+
+	var outputFormat OutputFormat
+	if err := outputFormat.UnmarshalJSON(encoded); err != nil {
+		return nil, fmt.Errorf("decode response format: %w", err)
+	}
+
+	return &outputFormat, nil
 }
 
 func (c *openCodeClient) createSession() (Session, error) {
@@ -50,10 +92,10 @@ func (c *openCodeClient) deleteSession(id string) (bool, error) {
 	return deleted, nil
 }
 
-func (c *openCodeClient) sendMessage(id string, input string) (PromptResult, error) {
+func (c *openCodeClient) sendMessage(id string, message ClientMessage) (PromptResult, error) {
 	slog.Info("req /session/{sessionID}/message", "action", "prompt", "session_id", id)
 
-	part, err := newTextPromptPart(input)
+	part, err := newTextPromptPart(message.Text)
 	if err != nil {
 		return PromptResult{}, err
 	}
@@ -61,6 +103,12 @@ func (c *openCodeClient) sendMessage(id string, input string) (PromptResult, err
 	body := SessionPromptJSONBody{
 		Parts: []SessionPromptJSONBody_Parts_Item{part},
 	}
+
+	format, err := newOutputFormat(message.Format)
+	if err != nil {
+		return PromptResult{}, err
+	}
+	body.Format = format
 
 	path := fmt.Sprintf("/session/%s/message", url.PathEscape(id))
 	var result PromptResult
@@ -71,38 +119,13 @@ func (c *openCodeClient) sendMessage(id string, input string) (PromptResult, err
 	return result, nil
 }
 
-func (c *openCodeClient) prompt(input string) (PromptResult, error) {
+func (c *openCodeClient) prompt(message ClientMessage) (PromptResult, error) {
 	session, err := c.createSession()
 	if err != nil {
 		return PromptResult{}, err
 	}
 
-	return c.sendMessage(session.Id, input)
-}
-
-
-func newTextPromptPart(input string) (SessionPromptJSONBody_Parts_Item, error) {
-	textPart := TextPartInput{
-		Text: input,
-		Type: "text",
-	}
-
-	var part SessionPromptJSONBody_Parts_Item
-	if err := part.FromTextPartInput(textPart); err != nil {
-		return SessionPromptJSONBody_Parts_Item{}, fmt.Errorf("encode text part: %w", err)
-	}
-
-	return part, nil
-}
-
-func marshalUnionValue(dst *json.RawMessage, value any) error {
-	encoded, err := json.Marshal(value)
-	if err != nil {
-		return err
-	}
-
-	*dst = encoded
-	return nil
+	return c.sendMessage(session.Id, message)
 }
 
 func (c *openCodeClient) doJSON(method, path string, requestBody any, responseBody any) error {

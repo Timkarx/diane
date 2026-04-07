@@ -30,7 +30,26 @@ func main() {
 	clientOpts := agent.ClientOptions{}
 	client := agent.NewOpenCodeClient(clientOpts)
 
-	res, err := client.Prompt("What gurantees does c++ give about function arg evaluation?")
+	msg := agent.ClientMessage{
+		Text: "What gurantees does c++ give about function arg evaluation?",
+		Format: agent.JSONSchemaFormat{
+			Schema: agent.JSONSchema{
+				"type": "object",
+				"properties": map[string]any{
+					"should_notify": map[string]any{
+						"type":        "boolean",
+						"desctiption": "true if this item fits all the specified criteria",
+					},
+					"summary": map[string]any{
+						"type":        "string",
+						"description": "Short summary of the listing, if applicable",
+					},
+				},
+			},
+		},
+	}
+
+	res, err := client.Prompt(msg)
 	if err != nil {
 		os.Exit(1)
 	}
