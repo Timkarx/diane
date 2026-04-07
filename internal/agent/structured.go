@@ -64,6 +64,27 @@ func (p PromptResult) DecodeStructured(dst any) error {
 	return nil
 }
 
+func AnalyzeApartementListingPrompt(listing string) ClientMessage {
+	return ClientMessage{
+		Text: listing,
+		Format: JSONSchemaFormat{
+			Schema: JSONSchema{
+				"type": "object",
+				"properties": map[string]any{
+					"should_notify": map[string]any{
+						"type":        "boolean",
+						"desctiption": "true if this item fits all the specified criteria",
+					},
+					"summary": map[string]any{
+						"type":        "string",
+						"description": "Short summary of the listing, if applicable",
+					},
+				},
+			},
+		},
+	}
+}
+
 func DecodeStructured[T any](result PromptResult) (T, error) {
 	var value T
 	if err := result.DecodeStructured(&value); err != nil {

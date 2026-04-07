@@ -5,9 +5,9 @@ import (
 	"diane/internal/telegram_bot"
 	"fmt"
 	"github.com/joho/godotenv"
+	"log"
 	"os"
 	"runtime"
-	"log"
 )
 
 func setup() {
@@ -29,30 +29,12 @@ func main() {
 	clientOpts := agent.ClientOptions{}
 	client := agent.NewOpenCodeClient(clientOpts)
 
-	prompt_bytes, err := os.ReadFile("test/bad_prompt.md")
+	prompt_bytes, err := os.ReadFile("test/good_prompt.md")
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	msg := agent.ClientMessage{
-		Text: string(prompt_bytes),
-		Format: agent.JSONSchemaFormat{
-			Schema: agent.JSONSchema{
-				"type": "object",
-				"properties": map[string]any{
-					"should_notify": map[string]any{
-						"type":        "boolean",
-						"desctiption": "true if this item fits all the specified criteria",
-					},
-					"summary": map[string]any{
-						"type":        "string",
-						"description": "Short summary of the listing, if applicable",
-					},
-				},
-			},
-		},
-	}
-
+	msg := agent.AnalyzeApartementListingPrompt(string(prompt_bytes))
 	res, err := client.Prompt(msg)
 	if err != nil {
 		os.Exit(1)
