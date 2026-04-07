@@ -7,7 +7,7 @@ import (
 
 const defaultBaseURL = "http://localhost:4096"
 
-func (c *openCodeClient) CheckHealth() (HealthStatus, error) {
+func (c *openCodeClient[T]) CheckHealth() (HealthStatus, error) {
 	slog.Info("req /global/health")
 
 	var health HealthStatus
@@ -18,16 +18,16 @@ func (c *openCodeClient) CheckHealth() (HealthStatus, error) {
 	return health, nil
 }
 
-func (c *openCodeClient) Prompt(message ClientMessage) (PromptResult, error) {
+func (c *openCodeClient[T]) Prompt(message ClientMessage) (PromptResult[T], error) {
 	res, err := c.prompt(message)
 	if err != nil {
 		slog.Error("prompt failed", "error", err)
-		return PromptResult{}, err
+		return PromptResult[T]{}, err
 	}
 	return res, nil
 }
 
-func NewOpenCodeClient(opts ClientOptions) *openCodeClient {
+func NewOpenCodeClient[T any](opts ClientOptions) *openCodeClient[T] {
 	slog.Info("initializing opencode client")
 
 	baseURL := opts.BaseUrl
@@ -40,7 +40,7 @@ func NewOpenCodeClient(opts ClientOptions) *openCodeClient {
 		httpClient = http.DefaultClient
 	}
 
-	return &openCodeClient{
+	return &openCodeClient[T]{
 		httpClient: httpClient,
 		baseURL:    baseURL,
 	}

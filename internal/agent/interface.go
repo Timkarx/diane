@@ -7,19 +7,14 @@ type HealthStatus struct {
 	Version string `json:"version"`
 }
 
-type PromptResult struct {
-	Info  AssistantMessage `json:"info"`
-	Parts []Part           `json:"parts"`
-}
-
 type ClientMessage struct {
 	Text   string
 	Format ResponseFormat
 }
 
-type Client interface {
+type Client[T any] interface {
 	CheckHealth() (HealthStatus, error)
-	Prompt(message ClientMessage) (PromptResult, error)
+	Prompt(message ClientMessage) (PromptResult[T], error)
 }
 
 type ClientOptions struct {
@@ -27,7 +22,7 @@ type ClientOptions struct {
 	HTTPClient *http.Client
 }
 
-type openCodeClient struct {
+type openCodeClient[T any] struct {
 	httpClient     *http.Client
 	baseURL        string
 	requestCounter int
