@@ -31,6 +31,29 @@ func TestPromptResultAsPlainTextIgnoresNonTextParts(t *testing.T) {
 
 func TestPromptResultDebugPrintPrettyPrintsAllParts(t *testing.T) {
 	result := PromptResult{
+		Info: AssistantMessage{
+			Agent:      "planner",
+			Id:         "msg-1",
+			Mode:       "chat",
+			ModelID:    "model-1",
+			ParentID:   "parent-1",
+			ProviderID: "provider-1",
+			Role:       "assistant",
+			SessionID:  "session-1",
+			Path: struct {
+				Cwd  string `json:"cwd"`
+				Root string `json:"root"`
+			}{
+				Cwd:  "/tmp",
+				Root: "/",
+			},
+			Time: struct {
+				Completed *float32 `json:"completed,omitempty"`
+				Created   float32  `json:"created"`
+			}{
+				Created: 1,
+			},
+		},
 		Parts: []Part{
 			mustPart(t, `{"id":"text-1","messageID":"msg-1","sessionID":"session-1","text":"hello","type":"text"}`),
 			mustPart(t, `{"id":"step-1","messageID":"msg-1","sessionID":"session-1","type":"step-start"}`),
@@ -42,8 +65,10 @@ func TestPromptResultDebugPrintPrettyPrintsAllParts(t *testing.T) {
 	})
 
 	for _, want := range []string{
+		"info:",
 		"part 0:",
 		"part 1:",
+		"\n  \"agent\": \"planner\"",
 		"\n  \"type\": \"text\"",
 		"\n  \"type\": \"step-start\"",
 	} {

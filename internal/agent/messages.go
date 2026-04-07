@@ -1,7 +1,6 @@
 package agent
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"log/slog"
@@ -32,20 +31,20 @@ func (p PromptResult) AsPlainText() []string {
 }
 
 func (p PromptResult) DebugPrint() {
+	info, err := json.MarshalIndent(p.Info, "", "  ")
+	if err != nil {
+		slog.Error("marshal response info failed", "error", err)
+	} else {
+		fmt.Printf("info:\n%s\n", info)
+	}
+
 	for i, part := range p.Parts {
-		encoded, err := part.MarshalJSON()
+		encoded, err := json.MarshalIndent(part, "", "  ")
 		if err != nil {
 			slog.Error("marshal response part failed", "index", i, "error", err)
 			continue
 		}
 
-		var pretty bytes.Buffer
-		if err := json.Indent(&pretty, encoded, "", "  "); err != nil {
-			slog.Error("pretty print response part failed", "index", i, "error", err)
-			fmt.Printf("part %d: %s\n", i, string(encoded))
-			continue
-		}
-
-		fmt.Printf("part %d:\n%s\n", i, pretty.String())
+		fmt.Printf("part %d:\n%s\n", i, encoded)
 	}
 }
