@@ -1,5 +1,5 @@
 package server
 
 type Payload struct {
-	Text string `json:"prompt"`
+	Text string `json:"listing"`
 }

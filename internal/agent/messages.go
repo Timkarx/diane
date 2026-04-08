@@ -105,7 +105,6 @@ func (p PromptResult[T]) DebugPrint() {
 
 func AnalyzeApartementListingPrompt(listing string, instructions string) ClientMessage {
 	combined_prompt := instructions + "\n" + listing
-	fmt.Println(combined_prompt)
 	return ClientMessage{
 		Text: combined_prompt,
 	}

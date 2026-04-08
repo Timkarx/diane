@@ -5,6 +5,7 @@ import (
 	"diane/internal/telegram_bot"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 )
@@ -13,6 +14,11 @@ func New() http.Handler {
 	mux := http.NewServeMux()
 	client := agent.NewOpenCodeClient[agent.ListingDecision](agent.ClientOptions{})
 	bot := telegram_bot.NewTelegramBot(os.Getenv("TELEGRAM_BOT_TOKEN"), os.Getenv("TELEGRAM_CHAT_ID"))
+
+	instruction_bytes, err := os.ReadFile("test/instructions.md")
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	mux.HandleFunc("GET /health", func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, 200, map[string]any{
@@ -30,25 +36,28 @@ func New() http.Handler {
 			return
 		}
 
-		// 2. Pass it to the client
-		response, err := client.Prompt(agent.ClientMessage{Text: payload.Text})
-		if err != nil {
-			writeJSON(w, 500, map[string]any{
-				"error": "Internal error",
-			})
-			return
-		}
-		callback := func(actionable agent.ListingDecision) {
-			bot.SendMessage(actionable.Summarize())
-		}
+		go func(text string) {
+			response, err := client.Prompt(agent.AnalyzeApartementListingPrompt(text, string(instruction_bytes)))
+			if err != nil {
+				log.Printf("listing summary prompt failed: %v", err)
+				return
+			}
 
-		agent.ExecuteHandler(response, callback)
+			callback := func(actionable agent.ListingDecision) {
+				if err := bot.SendMessage(actionable.Summarize()); err != nil {
+					log.Printf("listing summary notification failed: %v", err)
+				}
+			}
 
-		// 3. Return client response
-		writeJSON(w, 200, map[string]any{
-			"text": response.AsPlainText(),
+			if err := agent.ExecuteHandler(response, callback); err != nil {
+				log.Printf("listing summary handler failed: %v", err)
+			}
+		}(payload.Text)
+
+		// 2. Acknowledge the request and let the workflow finish asynchronously.
+		writeJSON(w, http.StatusAccepted, map[string]any{
+			"status": "processing",
 		})
-
 	})
 
 	return mux
