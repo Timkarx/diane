@@ -99,3 +99,23 @@ func TestExecuteHandlerUsesActionTrigger(t *testing.T) {
 		t.Fatal("ExecuteHandler() invoked callback for non-actionable result")
 	}
 }
+
+func TestListingDecisionToNotificationIncludesInputContext(t *testing.T) {
+	decision := ListingDecision{Summary: "fits"}
+	input := ListingInput{
+		Listing: "nice flat",
+		Link:    "https://example.com/listing",
+		Photos:  []string{"https://example.com/1.jpg", "https://example.com/2.jpg"},
+	}
+
+	got := decision.ToNotification(input)
+	want := ListingNotification{
+		Text:   "fits",
+		Link:   "https://example.com/listing",
+		Photos: []string{"https://example.com/1.jpg", "https://example.com/2.jpg"},
+	}
+
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("ToNotification() = %#v, want %#v", got, want)
+	}
+}

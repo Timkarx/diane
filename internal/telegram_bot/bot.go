@@ -2,13 +2,15 @@ package telegram_bot
 
 import (
 	"bytes"
+	"diane/internal/agent"
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 )
 
 type NotificationService interface {
-	SendMessage(string) (bool, error)
+	SendMessage(agent.ListingNotification) error
 }
 
 type TelegramBot struct {
@@ -28,12 +30,77 @@ func NewTelegramBot(token string, chat_id string) TelegramBot {
 	return bot
 }
 
-func (b *TelegramBot) SendMessage(m string) error {
-	payload := fmt.Sprintf(`{ "chat_id": "%s", "text": "%s"}`, b.chat_id, m)
+func (b *TelegramBot) SendMessage(message agent.ListingNotification) error {
+	text := renderText(message)
+	if text != "" {
+		if err := b.post("/sendMessage", map[string]any{
+			"chat_id": b.chat_id,
+			"text":    text,
+		}); err != nil {
+			return err
+		}
+	}
+
+	photos := nonEmptyPhotos(message.Photos)
+	switch len(photos) {
+	case 0:
+		return nil
+	case 1:
+		return b.post("/sendPhoto", map[string]any{
+			"chat_id": b.chat_id,
+			"photo":   photos[0],
+		})
+	default:
+		media := make([]map[string]string, 0, len(photos))
+		for _, photo := range photos {
+			media = append(media, map[string]string{
+				"type":  "photo",
+				"media": photo,
+			})
+		}
+		return b.post("/sendMediaGroup", map[string]any{
+			"chat_id": b.chat_id,
+			"media":   media,
+		})
+	}
+}
+
+func renderText(message agent.ListingNotification) string {
+	text := strings.TrimSpace(message.Text)
+	link := strings.TrimSpace(message.Link)
+
+	switch {
+	case text == "":
+		return link
+	case link == "":
+		return text
+	default:
+		return fmt.Sprintf("%s\n\n%s", text, link)
+	}
+}
+
+func nonEmptyPhotos(photos []string) []string {
+	cleaned := make([]string, 0, len(photos))
+	for _, photo := range photos {
+		photo = strings.TrimSpace(photo)
+		if photo == "" {
+			continue
+		}
+		cleaned = append(cleaned, photo)
+	}
+	return cleaned
+}
+
+func (b *TelegramBot) post(path string, payload any) error {
+	body, err := json.Marshal(payload)
+	if err != nil {
+		return err
+	}
+
 	res, err := b.httpClient.Post(
-		b.url+"/sendMessage",
+		b.url+path,
 		"application/json",
-		bytes.NewBufferString(payload),
+		bytes.NewBuffer(body),
 	)
 
 	if err != nil {
@@ -42,10 +109,10 @@ func (b *TelegramBot) SendMessage(m string) error {
 	defer res.Body.Close()
 
 	var tgResponse struct {
-		Ok          bool           `json:"ok"`
-		Result      map[string]any `json:"result,omitempty"`
-		ErrorCode   int            `json:"error_code,omitempty"`
-		Description string         `json:"description,omitempty"`
+		Ok          bool            `json:"ok"`
+		Result      json.RawMessage `json:"result,omitempty"`
+		ErrorCode   int             `json:"error_code,omitempty"`
+		Description string          `json:"description,omitempty"`
 	}
 	err = json.NewDecoder(res.Body).Decode(&tgResponse)
 	if err != nil {

@@ -43,7 +43,10 @@ func main() {
 	}
 
 	callback := func(actionable agent.ListingDecision) {
-		bot.SendMessage(actionable.Summarize())
+		notification := actionable.ToNotification(agent.ListingInput{})
+		if err := bot.SendMessage(notification); err != nil {
+			log.Printf("telegram notification failed: %v", err)
+		}
 	}
 
 	agent.ExecuteHandler(res, callback)

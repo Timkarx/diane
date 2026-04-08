@@ -28,23 +28,24 @@ func New() http.Handler {
 
 	mux.HandleFunc("POST /listing-summary", func(w http.ResponseWriter, r *http.Request) {
 		// 1. Extract request body
-		payload, err := parseRequest(r)
+		input, err := parseRequest(r)
 		if err != nil {
 			writeJSON(w, 422, map[string]any{
-				"error": "Invalid payload shape",
+				"error": "Invalid payload",
 			})
 			return
 		}
 
-		go func(text string) {
-			response, err := client.Prompt(agent.AnalyzeApartementListingPrompt(text, string(instruction_bytes)))
+		go func(input agent.ListingInput) {
+			response, err := client.Prompt(agent.AnalyzeApartementListingPrompt(input.Listing, string(instruction_bytes)))
 			if err != nil {
 				log.Printf("listing summary prompt failed: %v", err)
 				return
 			}
 
 			callback := func(actionable agent.ListingDecision) {
-				if err := bot.SendMessage(actionable.Summarize()); err != nil {
+				notification := actionable.ToNotification(input)
+				if err := bot.SendMessage(notification); err != nil {
 					log.Printf("listing summary notification failed: %v", err)
 				}
 			}
@@ -52,7 +53,7 @@ func New() http.Handler {
 			if err := agent.ExecuteHandler(response, callback); err != nil {
 				log.Printf("listing summary handler failed: %v", err)
 			}
-		}(payload.Text)
+		}(input)
 
 		// 2. Acknowledge the request and let the workflow finish asynchronously.
 		writeJSON(w, http.StatusAccepted, map[string]any{
@@ -69,12 +70,15 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 	_ = json.NewEncoder(w).Encode(v)
 }
 
-func parseRequest(r *http.Request) (Payload, error) {
-	var prompt Payload
-	err := json.NewDecoder(r.Body).Decode(&prompt)
+func parseRequest(r *http.Request) (agent.ListingInput, error) {
+	var input agent.ListingInput
 	defer r.Body.Close()
+	err := json.NewDecoder(r.Body).Decode(&input)
 	if err != nil {
-		return Payload{}, fmt.Errorf("Invalid payload")
+		return agent.ListingInput{}, fmt.Errorf("Invalid payload")
 	}
-	return prompt, nil
+	if err := input.Validate(); err != nil {
+		return agent.ListingInput{}, err
+	}
+	return input, nil
 }
