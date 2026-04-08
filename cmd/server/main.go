@@ -9,9 +9,22 @@ import (
 	"os/signal"
 	"syscall"
 	"time"
+	"github.com/joho/godotenv"
+	"fmt"
+	"runtime"
 )
 
+func setup() {
+	err := godotenv.Load()
+	if err != nil {
+		fmt.Println("Error loading .env file")
+	}
+	cores := runtime.GOMAXPROCS(0)
+	fmt.Println("Number of cores: ", cores)
+}
+
 func main() {
+	setup()
 	srv := &http.Server{
 		Addr:              ":5555",
 		Handler:           server.New(),

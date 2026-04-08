@@ -2,14 +2,17 @@ package server
 
 import (
 	"diane/internal/agent"
+	"diane/internal/telegram_bot"
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
 )
 
 func New() http.Handler {
 	mux := http.NewServeMux()
-	client := agent.NewOpenCodeClient[agent.Unstructured](agent.ClientOptions{})
+	client := agent.NewOpenCodeClient[agent.ListingDecision](agent.ClientOptions{})
+	bot := telegram_bot.NewTelegramBot(os.Getenv("TELEGRAM_BOT_TOKEN"), os.Getenv("TELEGRAM_CHAT_ID"))
 
 	mux.HandleFunc("GET /health", func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, 200, map[string]any{
@@ -17,7 +20,7 @@ func New() http.Handler {
 		})
 	})
 
-	mux.HandleFunc("POST /prompt", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("POST /listing-summary", func(w http.ResponseWriter, r *http.Request) {
 		// 1. Extract request body
 		payload, err := parseRequest(r)
 		if err != nil {
@@ -35,6 +38,11 @@ func New() http.Handler {
 			})
 			return
 		}
+		callback := func(actionable agent.ListingDecision) {
+			bot.SendMessage(actionable.Summarize())
+		}
+
+		agent.ExecuteHandler(response, callback)
 
 		// 3. Return client response
 		writeJSON(w, 200, map[string]any{

@@ -11,11 +11,6 @@ type ClientMessage struct {
 	Text string
 }
 
-type Client[T Actionable] interface {
-	CheckHealth() (HealthStatus, error)
-	Prompt(message ClientMessage) (PromptResult[T], error)
-}
-
 type ClientOptions struct {
 	BaseUrl    string
 	HTTPClient *http.Client

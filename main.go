@@ -21,20 +21,22 @@ func setup() {
 
 func main() {
 	setup()
-	bot_token := os.Getenv("TELEGRAM_BOT_TOKEN")
-	chat_id := os.Getenv("TELEGRAM_CHAT_ID")
 
-	bot := telegram_bot.NewTelegramBot(bot_token, chat_id)
+	bot := telegram_bot.NewTelegramBot(os.Getenv("TELEGRAM_BOT_TOKEN"), os.Getenv("TELEGRAM_CHAT_ID"))
 
 	clientOpts := agent.ClientOptions{}
 	client := agent.NewOpenCodeClient[agent.ListingDecision](clientOpts)
 
+	instruction_bytes, err := os.ReadFile("test/instructions.md")
+	if err != nil {
+		log.Fatal(err)
+	}
 	prompt_bytes, err := os.ReadFile("test/good_prompt.md")
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	msg := agent.AnalyzeApartementListingPrompt(string(prompt_bytes))
+	msg := agent.AnalyzeApartementListingPrompt(string(prompt_bytes), string(instruction_bytes))
 	res, err := client.Prompt(msg)
 	if err != nil {
 		os.Exit(1)
@@ -45,7 +47,6 @@ func main() {
 	}
 
 	agent.ExecuteHandler(res, callback)
-
 
 	os.Exit(0)
 }
