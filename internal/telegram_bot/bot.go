@@ -6,11 +6,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"strings"
 )
 
 type NotificationService interface {
-	SendMessage(agent.ListingNotification) error
+	SendMessage(agent.Notification) error
 }
 
 type TelegramBot struct {
@@ -30,8 +29,8 @@ func NewTelegramBot(token string, chat_id string) TelegramBot {
 	return bot
 }
 
-func (b *TelegramBot) SendMessage(message agent.ListingNotification) error {
-	text := renderText(message)
+func (b *TelegramBot) SendMessage(message agent.Notification) error {
+	text := message.ToFormattedText()
 	if text != "" {
 		if err := b.post("/sendMessage", map[string]any{
 			"chat_id": b.chat_id,
@@ -41,7 +40,7 @@ func (b *TelegramBot) SendMessage(message agent.ListingNotification) error {
 		}
 	}
 
-	photos := nonEmptyPhotos(message.Photos)
+	photos := message.ToPhotos()
 	switch len(photos) {
 	case 0:
 		return nil
@@ -63,32 +62,6 @@ func (b *TelegramBot) SendMessage(message agent.ListingNotification) error {
 			"media":   media,
 		})
 	}
-}
-
-func renderText(message agent.ListingNotification) string {
-	text := strings.TrimSpace(message.Text)
-	link := strings.TrimSpace(message.Link)
-
-	switch {
-	case text == "":
-		return link
-	case link == "":
-		return text
-	default:
-		return fmt.Sprintf("%s\n\n%s", text, link)
-	}
-}
-
-func nonEmptyPhotos(photos []string) []string {
-	cleaned := make([]string, 0, len(photos))
-	for _, photo := range photos {
-		photo = strings.TrimSpace(photo)
-		if photo == "" {
-			continue
-		}
-		cleaned = append(cleaned, photo)
-	}
-	return cleaned
 }
 
 func (b *TelegramBot) post(path string, payload any) error {
