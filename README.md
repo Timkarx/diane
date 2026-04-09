@@ -1,15 +1,21 @@
-I need to move out, but I can't be bothered to look through facebook posts for listings. Gonna try outsource this to Diane.
+An autonomous background task agent (whatever that means nowadays).
 
+## What?
 
-## WHY?
+A server that accepts data, runs into through an llm, executes various callbacks depending on what the llm decided to do with that information. Written in Go, and uses opencode under the hood.
 
-I tried openclaw, but it's completely fucked (not least because of typescript lol). I know what I need, so I'm just gonna make it. Also a good way to learn some Go.
+## Why?
 
+Because openclaw kinda sucks, and I have a good idea of what I need. 
 
-## Architecture
+## How?
 
-I'm thinking the following:
-- Agent (whatever that words means nowadays) at the core, essentially a wrapper around an LLM for injecting predefined prompts along with data
-- Some mechanism for the main process to schedule it's own tasks (what is cron?) (i.e. telegram bot to pull latest listings from tg groups), then send it to the agent
-- Some post-agent workflow to distribute the agent processing results (dm on telegram, send me an email...)
-- Some sort of injest filtering/deduplication to not burn through $1,000,000 worth of tokens.
+Clone the project, define your own payload/notification types, and send data to the server. I'm working on cleaning up the api.
+
+## Ideas
+- Have your apps prouction errors summarized into possible causes so you can fix them quicker
+- Scrape job postings and get notified when a new relevant position pops up (you have to build the scraper)
+- Monitor a twitter account for mentions of certain topics (so you can beat everyone on polymarket)
+
+## Lore
+Named after Diane the personal assistant to special agent Dale Cooper from Twin Peaks.
