@@ -31,23 +31,22 @@ func NewTelegramBot(token string, chat_id string) TelegramBot {
 
 func (b *TelegramBot) SendMessage(message agent.Notification) error {
 	text := message.ToFormattedText()
-	if text != "" {
-		if err := b.post("/sendMessage", map[string]any{
-			"chat_id": b.chat_id,
-			"text":    text,
-		}); err != nil {
-			return err
-		}
+	if text == "" {
+		return fmt.Errorf("Empty message string")
 	}
 
 	photos := message.ToPhotos()
 	switch len(photos) {
 	case 0:
-		return nil
+		return b.post("/sendMessage", map[string]any{
+			"chat_id": b.chat_id,
+			"text":    text,
+		})
 	case 1:
 		return b.post("/sendPhoto", map[string]any{
 			"chat_id": b.chat_id,
 			"photo":   photos[0],
+			"caption": text,
 		})
 	default:
 		media := make([]map[string]string, 0, len(photos))
@@ -57,6 +56,7 @@ func (b *TelegramBot) SendMessage(message agent.Notification) error {
 				"media": photo,
 			})
 		}
+		media[0]["caption"] = text
 		return b.post("/sendMediaGroup", map[string]any{
 			"chat_id": b.chat_id,
 			"media":   media,
