@@ -103,10 +103,3 @@ func (p OpencodeResult[T]) DebugPrint() {
 		fmt.Printf("part %d:\n%s\n", i, encoded)
 	}
 }
-
-func AnalyzeApartementListingPrompt(listing string, instructions string) ClientMessage {
-	combined_prompt := instructions + "\n" + listing
-	return ClientMessage{
-		Text: combined_prompt,
-	}
-}
