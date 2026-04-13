@@ -1,7 +1,7 @@
 package server
 
 import (
-	"diane/internal/agent"
+	"diane/internal/core"
 	"diane/internal/telegram_bot"
 	"encoding/json"
 	"fmt"
@@ -12,7 +12,7 @@ import (
 
 func New() http.Handler {
 	mux := http.NewServeMux()
-	client := agent.NewOpenCodeClient[agent.ListingDecision](agent.ClientOptions{})
+	client := core.NewOpenCodeClient[core.ListingDecision](core.ClientOptions{})
 	bot := telegram_bot.NewTelegramBot(os.Getenv("TELEGRAM_BOT_TOKEN"), os.Getenv("TELEGRAM_CHAT_ID"))
 
 	instruction_bytes, err := os.ReadFile("test/instructions.md")
@@ -36,21 +36,21 @@ func New() http.Handler {
 			return
 		}
 
-		go func(input agent.ListingInput) {
-			response, err := client.Prompt(agent.AnalyzeApartementListingPrompt(input.Listing, string(instruction_bytes)))
+		go func(input core.ListingInput) {
+			response, err := client.Prompt(core.AnalyzeApartementListingPrompt(input.Listing, string(instruction_bytes)))
 			if err != nil {
 				log.Printf("listing summary prompt failed: %v", err)
 				return
 			}
 
-			callback := func(actionable agent.ListingDecision) {
+			callback := func(actionable core.ListingDecision) {
 				notification := actionable.ToNotification(input)
 				if err := bot.SendMessage(notification); err != nil {
 					log.Printf("listing summary notification failed: %v", err)
 				}
 			}
 
-			if err := agent.ExecuteHandler(response, callback); err != nil {
+			if err := core.ExecuteHandler(response, callback); err != nil {
 				log.Printf("listing summary handler failed: %v", err)
 			}
 		}(input)
@@ -70,15 +70,15 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 	_ = json.NewEncoder(w).Encode(v)
 }
 
-func parseRequest(r *http.Request) (agent.ListingInput, error) {
-	var input agent.ListingInput
+func parseRequest(r *http.Request) (core.ListingInput, error) {
+	var input core.ListingInput
 	defer r.Body.Close()
 	err := json.NewDecoder(r.Body).Decode(&input)
 	if err != nil {
-		return agent.ListingInput{}, fmt.Errorf("Invalid payload")
+		return core.ListingInput{}, fmt.Errorf("Invalid payload")
 	}
 	if err := input.Validate(); err != nil {
-		return agent.ListingInput{}, err
+		return core.ListingInput{}, err
 	}
 	return input, nil
 }

@@ -1,3 +1,3 @@
-package agent
+package core
 
 //go:generate go tool opencodegen

@@ -1,4 +1,4 @@
-package agent
+package core
 
 type Callback[T Actionable] func(T)
 

@@ -1,7 +1,7 @@
 package main
 
 import (
-	"diane/internal/agent"
+	"diane/internal/core"
 	"diane/internal/telegram_bot"
 	"fmt"
 	"github.com/joho/godotenv"
@@ -24,8 +24,8 @@ func main() {
 
 	bot := telegram_bot.NewTelegramBot(os.Getenv("TELEGRAM_BOT_TOKEN"), os.Getenv("TELEGRAM_CHAT_ID"))
 
-	clientOpts := agent.ClientOptions{}
-	client := agent.NewOpenCodeClient[agent.ListingDecision](clientOpts)
+	clientOpts := core.ClientOptions{}
+	client := core.NewOpenCodeClient[core.ListingDecision](clientOpts)
 
 	instruction_bytes, err := os.ReadFile("test/instructions.md")
 	if err != nil {
@@ -36,20 +36,20 @@ func main() {
 		log.Fatal(err)
 	}
 
-	msg := agent.AnalyzeApartementListingPrompt(string(prompt_bytes), string(instruction_bytes))
+	msg := core.AnalyzeApartementListingPrompt(string(prompt_bytes), string(instruction_bytes))
 	res, err := client.Prompt(msg)
 	if err != nil {
 		os.Exit(1)
 	}
 
-	callback := func(actionable agent.ListingDecision) {
-		notification := actionable.ToNotification(agent.ListingInput{})
+	callback := func(actionable core.ListingDecision) {
+		notification := actionable.ToNotification(core.ListingInput{})
 		if err := bot.SendMessage(notification); err != nil {
 			log.Printf("telegram notification failed: %v", err)
 		}
 	}
 
-	agent.ExecuteHandler(res, callback)
+	core.ExecuteHandler(res, callback)
 
 	os.Exit(0)
 }

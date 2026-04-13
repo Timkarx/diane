@@ -1,7 +1,7 @@
 package telegram_bot
 
 import (
-	"diane/internal/agent"
+	"diane/internal/core"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -32,7 +32,7 @@ func TestSendMessageSendsTextWithLink(t *testing.T) {
 		chat_id:    "chat-123",
 	}
 
-	err := bot.SendMessage(agent.ListingNotification{
+	err := bot.SendMessage(core.ListingNotification{
 		Text: "Fits the criteria",
 		Link: "https://example.com/listing",
 	})
@@ -95,7 +95,7 @@ func TestSendMessageSendsPhotoGroupWhenPhotosPresent(t *testing.T) {
 		chat_id:    "chat-123",
 	}
 
-	err := bot.SendMessage(agent.ListingNotification{
+	err := bot.SendMessage(core.ListingNotification{
 		Link: "https://example.com/listing",
 		Photos: []string{
 			"https://example.com/1.jpg",
