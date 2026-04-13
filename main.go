@@ -1,7 +1,7 @@
 package main
 
 import (
-	"diane/internal/core"
+	"diane/core"
 	"diane/internal/telegram_bot"
 	"fmt"
 	"github.com/joho/godotenv"

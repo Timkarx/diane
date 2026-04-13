@@ -39,10 +39,10 @@ func TestNewOutputFormatUsesActionSchema(t *testing.T) {
 	}
 }
 
-func TestPromptResultStructuredDecodesAction(t *testing.T) {
+func TestTaskResultStructuredDecodesAction(t *testing.T) {
 	raw := []byte(`{"info":{"structured":{"should_notify":true,"summary":"fits"}},"parts":[]}`)
 
-	var result PromptResult[ListingDecision]
+	var result TaskResult[ListingDecision]
 	if err := json.Unmarshal(raw, &result); err != nil {
 		t.Fatalf("json.Unmarshal() error = %v", err)
 	}
@@ -64,7 +64,7 @@ func TestPromptResultStructuredDecodesAction(t *testing.T) {
 func TestExecuteHandlerUsesActionTrigger(t *testing.T) {
 	raw := []byte(`{"info":{"structured":{"should_notify":true,"summary":"fits"}},"parts":[]}`)
 
-	var result PromptResult[ListingDecision]
+	var result TaskResult[ListingDecision]
 	if err := json.Unmarshal(raw, &result); err != nil {
 		t.Fatalf("json.Unmarshal() error = %v", err)
 	}

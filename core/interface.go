@@ -7,6 +7,14 @@ type HealthStatus struct {
 	Version string `json:"version"`
 }
 
+type JSONSchema map[string]interface{}
+
+type TaskSpec[K any] interface {
+	Schema() JSONSchema
+	ShouldAct() bool
+	Validate() error
+}
+
 type TaskAgentMessage struct {
 	Text string
 }
@@ -16,6 +24,6 @@ type TaskAgentOptions struct {
 	HTTPClient *http.Client
 }
 
-type TaskAgent[T Actionable] interface {
-	ScheduleTask(TaskAgentMessage) PromptResult[T]
+type TaskAgent[K any, T TaskSpec[K]] interface {
+	ScheduleTask(TaskAgentMessage) K
 }

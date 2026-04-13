@@ -1,14 +1,15 @@
-package core
+package opencode
 
 import (
 	"io"
 	"os"
 	"strings"
 	"testing"
+	"diane/core"
 )
 
-func TestPromptResultAsPlainTextIgnoresNonTextParts(t *testing.T) {
-	result := PromptResult[Unstructured]{
+func TestTaskResultAsPlainTextIgnoresNonTextParts(t *testing.T) {
+	result := TaskResult[core.Unstructured]{
 		Parts: []Part{
 			mustPart(t, `{"id":"text-1","messageID":"msg-1","sessionID":"session-1","text":"hello","type":"text"}`),
 			mustPart(t, `{"id":"tool-1","callID":"call-1","messageID":"msg-1","sessionID":"session-1","state":{"status":"pending"},"tool":"bash","type":"tool"}`),
@@ -29,8 +30,8 @@ func TestPromptResultAsPlainTextIgnoresNonTextParts(t *testing.T) {
 	}
 }
 
-func TestPromptResultDebugPrintPrettyPrintsAllParts(t *testing.T) {
-	result := PromptResult[Unstructured]{
+func TestTaskResultDebugPrintPrettyPrintsAllParts(t *testing.T) {
+	result := TaskResult[core.Unstructured]{
 		Info: AssistantMessage{
 			Agent:      "planner",
 			Id:         "msg-1",

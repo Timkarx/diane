@@ -1,8 +1,8 @@
 package core
 
-type Callback[T Actionable] func(T)
+type Callback[T TaskSpec] func(T)
 
-func ExecuteHandler[T Actionable](r PromptResult[T], callback Callback[T]) error {
+func ExecuteHandler[T TaskSpec](r TaskResult[T], callback Callback[T]) error {
 	action, err := r.Structured()
 	if err != nil {
 		return err

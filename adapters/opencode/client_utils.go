@@ -2,6 +2,7 @@ package opencode
 
 import (
 	"bytes"
+	"diane/core"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -9,7 +10,6 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
-	"diane/core"
 )
 
 func marshalUnionValue(dst *json.RawMessage, value any) error {
@@ -48,7 +48,7 @@ func newTextPromptPart(input string) (SessionPromptJSONBody_Parts_Item, error) {
 	return part, nil
 }
 
-func newOutputFormat[T core.Actionable]() (*OutputFormat, error) {
+func newOutputFormat[K any, T core.TaskSpec[K]]() (*OutputFormat, error) {
 	var action T
 	schema := action.Schema()
 	if len(schema) == 0 {
@@ -67,7 +67,7 @@ func newOutputFormat[T core.Actionable]() (*OutputFormat, error) {
 	return &outputFormat, nil
 }
 
-func (c *OpencodeAgent[T]) createSession() (Session, error) {
+func (c *OpencodeAgent[K, T]) createSession() (Session, error) {
 	slog.Info("req /session", "action", "create")
 
 	title := fmt.Sprintf("analyze_%d", c.requestCounter)
@@ -82,7 +82,7 @@ func (c *OpencodeAgent[T]) createSession() (Session, error) {
 	return session, nil
 }
 
-func (c *OpencodeAgent[T]) deleteSession(id string) (bool, error) {
+func (c *OpencodeAgent[K, T]) deleteSession(id string) (bool, error) {
 	slog.Info("req /session/{sessionID}", "action", "delete", "session_id", id)
 
 	var deleted bool
@@ -94,43 +94,43 @@ func (c *OpencodeAgent[T]) deleteSession(id string) (bool, error) {
 	return deleted, nil
 }
 
-func (c *OpencodeAgent[T]) sendMessage(id string, message core.TaskAgentMessage) (core.PromptResult[T], error) {
+func (c *OpencodeAgent[K, T]) sendMessage(id string, message core.TaskAgentMessage) (OpencodeResult[T], error) {
 	slog.Info("req /session/{sessionID}/message", "action", "prompt", "session_id", id)
 
 	part, err := newTextPromptPart(message.Text)
 	if err != nil {
-		return core.PromptResult[T]{}, err
+		return OpencodeResult[T]{}, err
 	}
 
 	body := SessionPromptJSONBody{
 		Parts: []SessionPromptJSONBody_Parts_Item{part},
 	}
 
-	format, err := newOutputFormat[T]()
+	format, err := newOutputFormat[K, T]()
 	if err != nil {
-		return core.PromptResult[T]{}, err
+		return OpencodeResult[T]{}, err
 	}
 	body.Format = format
 
 	path := fmt.Sprintf("/session/%s/message", url.PathEscape(id))
-	var result core.PromptResult[T]
+	var result OpencodeResult[T]
 	if err := c.doJSON(http.MethodPost, path, body, &result); err != nil {
-		return core.PromptResult[T]{}, err
+		return OpencodeResult[T]{}, err
 	}
 
 	return result, nil
 }
 
-func (c *OpencodeAgent[T]) prompt(message core.TaskAgentMessage) (core.PromptResult[T], error) {
+func (c *OpencodeAgent[K, T]) prompt(message core.TaskAgentMessage) (OpencodeResult[T], error) {
 	session, err := c.createSession()
 	if err != nil {
-		return core.PromptResult[T]{}, err
+		return OpencodeResult[T]{}, err
 	}
 
 	return c.sendMessage(session.Id, message)
 }
 
-func (c *OpencodeAgent[T]) doJSON(method, path string, requestBody any, responseBody any) error {
+func (c *OpencodeAgent[K, T]) doJSON(method, path string, requestBody any, responseBody any) error {
 	endpoint, err := c.resolveURL(path)
 	if err != nil {
 		return err
@@ -177,7 +177,7 @@ func (c *OpencodeAgent[T]) doJSON(method, path string, requestBody any, response
 	return nil
 }
 
-func (c *OpencodeAgent[T]) resolveURL(path string) (string, error) {
+func (c *OpencodeAgent[K, T]) resolveURL(path string) (string, error) {
 	baseURL, err := url.Parse(c.baseURL)
 	if err != nil {
 		return "", fmt.Errorf("parse base url %q: %w", c.baseURL, err)

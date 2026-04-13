@@ -6,12 +6,6 @@ import (
 	"strings"
 )
 
-type Actionable interface {
-	Schema() JSONSchema
-	ShouldAct() bool
-	Validate() error
-}
-
 type Notification interface {
 	ToFormattedText() string
 	ToPhotos() []string

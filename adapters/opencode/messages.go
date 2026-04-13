@@ -1,15 +1,16 @@
-package core
+package opencode
 
 import (
 	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
+	"diane/core"
 )
 
 var ErrNoStructuredOutput = errors.New("response did not include structured output")
 
-type PromptResult[T Actionable] struct {
+type OpencodeResult[T core.TaskSpec[T]] struct {
 	Info  AssistantMessage `json:"info"`
 	Parts []Part           `json:"parts"`
 
@@ -17,7 +18,7 @@ type PromptResult[T Actionable] struct {
 	hasStructured bool
 }
 
-func (p *PromptResult[T]) UnmarshalJSON(data []byte) error {
+func (p *OpencodeResult[T]) UnmarshalJSON(data []byte) error {
 	var payload struct {
 		Info  json.RawMessage `json:"info"`
 		Parts []Part          `json:"parts"`
@@ -51,7 +52,7 @@ func (p *PromptResult[T]) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-func (p PromptResult[T]) Structured() (T, error) {
+func (p OpencodeResult[T]) Structured() (T, error) {
 	if !p.hasStructured {
 		var zero T
 		return zero, ErrNoStructuredOutput
@@ -60,7 +61,7 @@ func (p PromptResult[T]) Structured() (T, error) {
 	return p.structured, nil
 }
 
-func (p PromptResult[T]) AsPlainText() []string {
+func (p OpencodeResult[T]) AsPlainText() []string {
 	var text []string
 	for _, part := range p.Parts {
 		var meta struct {
@@ -84,7 +85,7 @@ func (p PromptResult[T]) AsPlainText() []string {
 	return text
 }
 
-func (p PromptResult[T]) DebugPrint() {
+func (p OpencodeResult[T]) DebugPrint() {
 	info, err := json.MarshalIndent(p.Info, "", "  ")
 	if err != nil {
 		slog.Error("marshal response info failed", "error", err)
