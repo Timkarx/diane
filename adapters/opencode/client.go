@@ -25,13 +25,22 @@ func (c *OpencodeAgent[K, T]) CheckHealth() (core.HealthStatus, error) {
 	return health, nil
 }
 
-func (c *OpencodeAgent[K, T]) Prompt(message core.TaskAgentMessage) (OpencodeResult[T], error) {
+func (c *OpencodeAgent[K, T]) ScheduleTask(message core.TaskAgentMessage) (K, error) {
 	res, err := c.prompt(message)
 	if err != nil {
-		slog.Error("prompt failed", "error", err)
-		return OpencodeResult[T]{}, err
+		slog.Error("schedule task failed", "error", err)
+		var zero K
+		return zero, err
 	}
-	return res, nil
+
+	structured, err := res.Structured()
+	if err != nil {
+		slog.Error("decode structured output failed", "error", err)
+		var zero K
+		return zero, err
+	}
+
+	return structured, nil
 }
 
 func NewOpenCodeClient[K any, T core.TaskSpec[K]](opts core.TaskAgentOptions) *OpencodeAgent[K, T] {

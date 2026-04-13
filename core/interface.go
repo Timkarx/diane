@@ -25,5 +25,5 @@ type TaskAgentOptions struct {
 }
 
 type TaskAgent[K any, T TaskSpec[K]] interface {
-	ScheduleTask(TaskAgentMessage) K
+	ScheduleTask(TaskAgentMessage) (K, error)
 }

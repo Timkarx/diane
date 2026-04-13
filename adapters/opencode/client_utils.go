@@ -57,7 +57,7 @@ func newOutputFormat[K any, T core.TaskSpec[K]]() (*OutputFormat, error) {
 
 	var outputFormat OutputFormat
 	err := outputFormat.FromOutputFormatJsonSchema(OutputFormatJsonSchema{
-		Schema: schema,
+		Schema: JSONSchema(schema),
 		Type:   "json_schema",
 	})
 	if err != nil {
@@ -94,12 +94,12 @@ func (c *OpencodeAgent[K, T]) deleteSession(id string) (bool, error) {
 	return deleted, nil
 }
 
-func (c *OpencodeAgent[K, T]) sendMessage(id string, message core.TaskAgentMessage) (OpencodeResult[T], error) {
+func (c *OpencodeAgent[K, T]) sendMessage(id string, message core.TaskAgentMessage) (OpencodeResult[K], error) {
 	slog.Info("req /session/{sessionID}/message", "action", "prompt", "session_id", id)
 
 	part, err := newTextPromptPart(message.Text)
 	if err != nil {
-		return OpencodeResult[T]{}, err
+		return OpencodeResult[K]{}, err
 	}
 
 	body := SessionPromptJSONBody{
@@ -108,23 +108,23 @@ func (c *OpencodeAgent[K, T]) sendMessage(id string, message core.TaskAgentMessa
 
 	format, err := newOutputFormat[K, T]()
 	if err != nil {
-		return OpencodeResult[T]{}, err
+		return OpencodeResult[K]{}, err
 	}
 	body.Format = format
 
 	path := fmt.Sprintf("/session/%s/message", url.PathEscape(id))
-	var result OpencodeResult[T]
+	var result OpencodeResult[K]
 	if err := c.doJSON(http.MethodPost, path, body, &result); err != nil {
-		return OpencodeResult[T]{}, err
+		return OpencodeResult[K]{}, err
 	}
 
 	return result, nil
 }
 
-func (c *OpencodeAgent[K, T]) prompt(message core.TaskAgentMessage) (OpencodeResult[T], error) {
+func (c *OpencodeAgent[K, T]) prompt(message core.TaskAgentMessage) (OpencodeResult[K], error) {
 	session, err := c.createSession()
 	if err != nil {
-		return OpencodeResult[T]{}, err
+		return OpencodeResult[K]{}, err
 	}
 
 	return c.sendMessage(session.Id, message)
