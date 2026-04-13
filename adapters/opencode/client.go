@@ -1,9 +1,9 @@
 package opencode
 
 import (
+	"diane/core"
 	"log/slog"
 	"net/http"
-	"diane/core"
 )
 
 const defaultBaseURL = "http://localhost:4096"
@@ -19,22 +19,22 @@ func (c *OpencodeAgent[T]) CheckHealth() (core.HealthStatus, error) {
 
 	var health core.HealthStatus
 	if err := c.doJSON(http.MethodGet, "/global/health", nil, &health); err != nil {
-		return HealthStatus{}, err
+		return core.HealthStatus{}, err
 	}
 
 	return health, nil
 }
 
-func (c *openCodeClient[T]) Prompt(message ClientMessage) (PromptResult[T], error) {
+func (c *OpencodeAgent[T]) Prompt(message core.TaskAgentMessage) (core.PromptResult[T], error) {
 	res, err := c.prompt(message)
 	if err != nil {
 		slog.Error("prompt failed", "error", err)
-		return PromptResult[T]{}, err
+		return core.PromptResult[T]{}, err
 	}
 	return res, nil
 }
 
-func NewOpenCodeClient[T Actionable](opts ClientOptions) *openCodeClient[T] {
+func NewOpenCodeClient[T core.Actionable](opts core.TaskAgentOptions) *OpencodeAgent[T] {
 	slog.Info("initializing opencode client")
 
 	baseURL := opts.BaseUrl
@@ -47,7 +47,7 @@ func NewOpenCodeClient[T Actionable](opts ClientOptions) *openCodeClient[T] {
 		httpClient = http.DefaultClient
 	}
 
-	return &openCodeClient[T]{
+	return &OpencodeAgent[T]{
 		httpClient: httpClient,
 		baseURL:    baseURL,
 	}
