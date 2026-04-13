@@ -12,6 +12,7 @@ type OpencodeAgent[K any, T core.TaskSpec[K]] struct {
 	httpClient     *http.Client
 	baseURL        string
 	requestCounter int
+	spec           *T
 }
 
 func (c *OpencodeAgent[K, T]) CheckHealth() (core.HealthStatus, error) {
@@ -38,6 +39,12 @@ func (c *OpencodeAgent[K, T]) ScheduleTask(message core.TaskAgentMessage) (K, er
 		slog.Error("decode structured output failed", "error", err)
 		var zero K
 		return zero, err
+	}
+
+	if c.spec != nil {
+		if err := (*c.spec).ExecuteEffect(structured); err != nil {
+			return structured, err
+		}
 	}
 
 	return structured, nil

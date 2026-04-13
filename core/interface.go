@@ -11,7 +11,7 @@ type JSONSchema map[string]interface{}
 
 type TaskSpec[K any] interface {
 	Schema() JSONSchema
-	ShouldAct() bool
+	ExecuteEffect(K) error
 	Validate() error
 }
 
