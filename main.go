@@ -24,7 +24,7 @@ func main() {
 
 	bot := telegram_bot.NewTelegramBot(os.Getenv("TELEGRAM_BOT_TOKEN"), os.Getenv("TELEGRAM_CHAT_ID"))
 
-	clientOpts := core.ClientOptions{}
+	clientOpts := core.TaskAgentOptions{}
 	client := core.NewOpenCodeClient[core.ListingDecision](clientOpts)
 
 	instruction_bytes, err := os.ReadFile("test/instructions.md")

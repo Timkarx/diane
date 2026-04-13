@@ -7,17 +7,15 @@ type HealthStatus struct {
 	Version string `json:"version"`
 }
 
-type ClientMessage struct {
+type TaskAgentMessage struct {
 	Text string
 }
 
-type ClientOptions struct {
+type TaskAgentOptions struct {
 	BaseUrl    string
 	HTTPClient *http.Client
 }
 
-type openCodeClient[T Actionable] struct {
-	httpClient     *http.Client
-	baseURL        string
-	requestCounter int
+type TaskAgent[T Actionable] interface {
+	ScheduleTask(TaskAgentMessage) PromptResult[T]
 }
