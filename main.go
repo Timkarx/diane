@@ -1,6 +1,7 @@
 package main
 
 import (
+	"diane/adapters/opencode"
 	"diane/core"
 	"diane/internal/telegram_bot"
 	"fmt"
@@ -9,6 +10,41 @@ import (
 	"os"
 	"runtime"
 )
+
+type TaskStructuredOoutput struct {
+	ShouldNotify bool   `json:"should_notify"`
+	Summary      string `json:"summary,omitempty"`
+}
+
+type ListingAnalysisTask struct{
+	bot *telegram_bot.TelegramBot
+}
+
+func (ListingAnalysisTask) Schema() core.JSONSchema {
+	return core.JSONSchema{
+		"type": "object",
+		"properties": map[string]any{
+			"should_notify": map[string]any{
+				"type":        "boolean",
+				"description": "true if this item fits all the specified criteria",
+			},
+			"summary": map[string]any{
+				"type":        "string",
+				"description": "Short summary of the listing, if applicable",
+			},
+		},
+		"required":             []string{"should_notify"},
+		"additionalProperties": false,
+	}
+}
+
+func (ListingAnalysisTask) ExecuteEffect(o TaskStructuredOoutput) error {
+
+}
+
+func (ListingAnalysisTask) Validate() error {
+	return nil
+}
 
 func setup() {
 	err := godotenv.Load()
@@ -25,7 +61,7 @@ func main() {
 	bot := telegram_bot.NewTelegramBot(os.Getenv("TELEGRAM_BOT_TOKEN"), os.Getenv("TELEGRAM_CHAT_ID"))
 
 	clientOpts := core.TaskAgentOptions{}
-	client := core.NewOpenCodeClient[core.ListingDecision](clientOpts)
+	client := opencode.NewOpenCodeClient[TaskStructuredOoutput, ListingAnalysisTask](clientOpts)
 
 	instruction_bytes, err := os.ReadFile("test/instructions.md")
 	if err != nil {

@@ -1,24 +1,14 @@
 package server
 
 import (
-	"diane/internal/core"
-	"diane/internal/telegram_bot"
+	"diane/core"
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
-	"os"
 )
 
-func New() http.Handler {
+func New(handlers ...core.Handler) http.Handler {
 	mux := http.NewServeMux()
-	client := core.NewOpenCodeClient[core.ListingDecision](core.ClientOptions{})
-	bot := telegram_bot.NewTelegramBot(os.Getenv("TELEGRAM_BOT_TOKEN"), os.Getenv("TELEGRAM_CHAT_ID"))
-
-	instruction_bytes, err := os.ReadFile("test/instructions.md")
-	if err != nil {
-		log.Fatal(err)
-	}
 
 	mux.HandleFunc("GET /health", func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, 200, map[string]any{
@@ -26,40 +16,9 @@ func New() http.Handler {
 		})
 	})
 
-	mux.HandleFunc("POST /listing-summary", func(w http.ResponseWriter, r *http.Request) {
-		// 1. Extract request body
-		input, err := parseRequest(r)
-		if err != nil {
-			writeJSON(w, 422, map[string]any{
-				"error": "Invalid payload",
-			})
-			return
-		}
-
-		go func(input core.ListingInput) {
-			response, err := client.Prompt(core.AnalyzeApartementListingPrompt(input.Listing, string(instruction_bytes)))
-			if err != nil {
-				log.Printf("listing summary prompt failed: %v", err)
-				return
-			}
-
-			callback := func(actionable core.ListingDecision) {
-				notification := actionable.ToNotification(input)
-				if err := bot.SendMessage(notification); err != nil {
-					log.Printf("listing summary notification failed: %v", err)
-				}
-			}
-
-			if err := core.ExecuteHandler(response, callback); err != nil {
-				log.Printf("listing summary handler failed: %v", err)
-			}
-		}(input)
-
-		// 2. Acknowledge the request and let the workflow finish asynchronously.
-		writeJSON(w, http.StatusAccepted, map[string]any{
-			"status": "processing",
-		})
-	})
+	for _, h := range handlers {
+		mux.HandleFunc(h.Method, h.HandlerFunc)
+	}
 
 	return mux
 }
