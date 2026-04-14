@@ -9,14 +9,14 @@ type HealthStatus struct {
 
 type JSONSchema map[string]interface{}
 
-type TaskSpec[K any] interface {
+type TaskSpec[S TaskAgentMessage, K any] interface {
 	Schema() JSONSchema
-	ExecuteEffect(K) error
+	ExecuteEffect(S, K) error
 	Validate() error
 }
 
-type TaskAgentMessage struct {
-	Text string
+type TaskAgentMessage interface {
+	ToText() string
 }
 
 type TaskAgentOptions struct {
@@ -24,6 +24,6 @@ type TaskAgentOptions struct {
 	HTTPClient *http.Client
 }
 
-type TaskAgent[K any, T TaskSpec[K]] interface {
+type TaskAgent[K any, S TaskAgentMessage, T TaskSpec[S, K]] interface {
 	ScheduleTask(TaskAgentMessage) (K, error)
 }

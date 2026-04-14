@@ -48,7 +48,7 @@ func newTextPromptPart(input string) (SessionPromptJSONBody_Parts_Item, error) {
 	return part, nil
 }
 
-func newOutputFormat[K any, T core.TaskSpec[K]]() (*OutputFormat, error) {
+func newOutputFormat[S core.TaskAgentMessage, K any, T core.TaskSpec[S, K]]() (*OutputFormat, error) {
 	var action T
 	schema := action.Schema()
 	if len(schema) == 0 {
@@ -67,7 +67,7 @@ func newOutputFormat[K any, T core.TaskSpec[K]]() (*OutputFormat, error) {
 	return &outputFormat, nil
 }
 
-func (c *OpencodeAgent[K, T]) createSession() (Session, error) {
+func (c *OpencodeAgent[S, K, T]) createSession() (Session, error) {
 	slog.Info("req /session", "action", "create")
 
 	title := fmt.Sprintf("analyze_%d", c.requestCounter)
@@ -82,7 +82,7 @@ func (c *OpencodeAgent[K, T]) createSession() (Session, error) {
 	return session, nil
 }
 
-func (c *OpencodeAgent[K, T]) deleteSession(id string) (bool, error) {
+func (c *OpencodeAgent[S, K, T]) deleteSession(id string) (bool, error) {
 	slog.Info("req /session/{sessionID}", "action", "delete", "session_id", id)
 
 	var deleted bool
@@ -94,10 +94,10 @@ func (c *OpencodeAgent[K, T]) deleteSession(id string) (bool, error) {
 	return deleted, nil
 }
 
-func (c *OpencodeAgent[K, T]) sendMessage(id string, message core.TaskAgentMessage) (OpencodeResult[K], error) {
+func (c *OpencodeAgent[S, K, T]) sendMessage(id string, message string) (OpencodeResult[K], error) {
 	slog.Info("req /session/{sessionID}/message", "action", "prompt", "session_id", id)
 
-	part, err := newTextPromptPart(message.Text)
+	part, err := newTextPromptPart(message)
 	if err != nil {
 		return OpencodeResult[K]{}, err
 	}
@@ -106,7 +106,7 @@ func (c *OpencodeAgent[K, T]) sendMessage(id string, message core.TaskAgentMessa
 		Parts: []SessionPromptJSONBody_Parts_Item{part},
 	}
 
-	format, err := newOutputFormat[K, T]()
+	format, err := newOutputFormat[S, K, T]()
 	if err != nil {
 		return OpencodeResult[K]{}, err
 	}
@@ -121,7 +121,7 @@ func (c *OpencodeAgent[K, T]) sendMessage(id string, message core.TaskAgentMessa
 	return result, nil
 }
 
-func (c *OpencodeAgent[K, T]) prompt(message core.TaskAgentMessage) (OpencodeResult[K], error) {
+func (c *OpencodeAgent[S, K, T]) prompt(message string) (OpencodeResult[K], error) {
 	session, err := c.createSession()
 	if err != nil {
 		return OpencodeResult[K]{}, err
@@ -130,7 +130,7 @@ func (c *OpencodeAgent[K, T]) prompt(message core.TaskAgentMessage) (OpencodeRes
 	return c.sendMessage(session.Id, message)
 }
 
-func (c *OpencodeAgent[K, T]) doJSON(method, path string, requestBody any, responseBody any) error {
+func (c *OpencodeAgent[S, K, T]) doJSON(method, path string, requestBody any, responseBody any) error {
 	endpoint, err := c.resolveURL(path)
 	if err != nil {
 		return err
@@ -177,7 +177,7 @@ func (c *OpencodeAgent[K, T]) doJSON(method, path string, requestBody any, respo
 	return nil
 }
 
-func (c *OpencodeAgent[K, T]) resolveURL(path string) (string, error) {
+func (c *OpencodeAgent[S, K, T]) resolveURL(path string) (string, error) {
 	baseURL, err := url.Parse(c.baseURL)
 	if err != nil {
 		return "", fmt.Errorf("parse base url %q: %w", c.baseURL, err)

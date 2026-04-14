@@ -2,14 +2,15 @@ package telegram_bot
 
 import (
 	"bytes"
-	"diane/internal/core"
 	"encoding/json"
 	"fmt"
 	"net/http"
 )
 
-type NotificationService interface {
-	SendMessage(core.Notification) error
+type TelegramMessage struct {
+	Text   string
+	Link   string
+	Photos []string
 }
 
 type TelegramBot struct {
@@ -29,13 +30,13 @@ func NewTelegramBot(token string, chat_id string) TelegramBot {
 	return bot
 }
 
-func (b *TelegramBot) SendMessage(message core.Notification) error {
-	text := message.ToFormattedText()
+func (b *TelegramBot) SendMessage(message TelegramMessage) error {
+	text := message.Text
 	if text == "" {
 		return fmt.Errorf("Empty message string")
 	}
 
-	photos := message.ToPhotos()
+	photos := message.Photos
 	switch len(photos) {
 	case 0:
 		return b.post("/sendMessage", map[string]any{

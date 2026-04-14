@@ -8,14 +8,14 @@ import (
 
 const defaultBaseURL = "http://localhost:4096"
 
-type OpencodeAgent[K any, T core.TaskSpec[K]] struct {
+type OpencodeAgent[S core.TaskAgentMessage, K any, T core.TaskSpec[S, K]] struct {
 	httpClient     *http.Client
 	baseURL        string
 	requestCounter int
 	spec           *T
 }
 
-func (c *OpencodeAgent[K, T]) CheckHealth() (core.HealthStatus, error) {
+func (c *OpencodeAgent[S, K, T]) CheckHealth() (core.HealthStatus, error) {
 	slog.Info("req /global/health")
 
 	var health core.HealthStatus
@@ -26,8 +26,8 @@ func (c *OpencodeAgent[K, T]) CheckHealth() (core.HealthStatus, error) {
 	return health, nil
 }
 
-func (c *OpencodeAgent[K, T]) ScheduleTask(message core.TaskAgentMessage) (K, error) {
-	res, err := c.prompt(message)
+func (c *OpencodeAgent[S, K, T]) ScheduleTask(message S) (K, error) {
+	res, err := c.prompt(message.ToText())
 	if err != nil {
 		slog.Error("schedule task failed", "error", err)
 		var zero K
@@ -42,7 +42,7 @@ func (c *OpencodeAgent[K, T]) ScheduleTask(message core.TaskAgentMessage) (K, er
 	}
 
 	if c.spec != nil {
-		if err := (*c.spec).ExecuteEffect(structured); err != nil {
+		if err := (*c.spec).ExecuteEffect(message, structured); err != nil {
 			return structured, err
 		}
 	}
@@ -50,7 +50,7 @@ func (c *OpencodeAgent[K, T]) ScheduleTask(message core.TaskAgentMessage) (K, er
 	return structured, nil
 }
 
-func NewOpenCodeClient[K any, T core.TaskSpec[K]](opts core.TaskAgentOptions) *OpencodeAgent[K, T] {
+func NewOpenCodeClient[S core.TaskAgentMessage, K any, T core.TaskSpec[S, K]](opts core.TaskAgentOptions, task T) *OpencodeAgent[S, K, T] {
 	slog.Info("initializing opencode client")
 
 	baseURL := opts.BaseUrl
@@ -63,8 +63,9 @@ func NewOpenCodeClient[K any, T core.TaskSpec[K]](opts core.TaskAgentOptions) *O
 		httpClient = http.DefaultClient
 	}
 
-	return &OpencodeAgent[K, T]{
+	return &OpencodeAgent[S, K, T]{
 		httpClient: httpClient,
 		baseURL:    baseURL,
+		spec:       &task,
 	}
 }
