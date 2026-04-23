@@ -1,7 +1,7 @@
 package opencode
 
 import (
-	"diane/core"
+	"github.com/Timkarx/diane/core"
 	"log/slog"
 	"net/http"
 )

@@ -1,9 +1,9 @@
 package main
 
 import (
-	"diane/adapters/agents/opencode"
-	"diane/core"
-	"diane/adapters/notifications/telegram"
+	"github.com/Timkarx/diane/adapters/agents/opencode"
+	"github.com/Timkarx/diane/core"
+	"github.com/Timkarx/diane/adapters/notifications/telegram"
 	"fmt"
 	"github.com/joho/godotenv"
 	"log"

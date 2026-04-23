@@ -2,7 +2,7 @@ package opencode
 
 import (
 	"bytes"
-	"diane/core"
+	"github.com/Timkarx/diane/core"
 	"encoding/json"
 	"fmt"
 	"io"
