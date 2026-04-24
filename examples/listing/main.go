@@ -1,10 +1,10 @@
 package main
 
 import (
-	"github.com/Timkarx/diane/adapters/agents/opencode"
-	"github.com/Timkarx/diane/core"
-	"github.com/Timkarx/diane/adapters/notifications/telegram"
 	"fmt"
+	"github.com/Timkarx/diane/adapters/agents/opencode"
+	"github.com/Timkarx/diane/adapters/notifications/telegram"
+	"github.com/Timkarx/diane/core"
 	"github.com/joho/godotenv"
 	"log"
 	"os"
@@ -80,7 +80,9 @@ func main() {
 
 	bot := telegram_bot.NewTelegramBot(os.Getenv("TELEGRAM_BOT_TOKEN"), os.Getenv("TELEGRAM_CHAT_ID"))
 
-	clientOpts := core.TaskAgentOptions{}
+	clientOpts := core.TaskAgentOptions{
+		SessionMode: core.TaskAgentSessionModeReusePerClient,
+	}
 	task := ListingAnalysisTask{&bot}
 	client := opencode.NewOpenCodeClient[AgentInput, TaskStructuredOoutput, *ListingAnalysisTask](clientOpts, &task)
 

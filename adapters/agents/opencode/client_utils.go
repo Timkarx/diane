@@ -2,14 +2,16 @@ package opencode
 
 import (
 	"bytes"
-	"github.com/Timkarx/diane/core"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"github.com/Timkarx/diane/core"
 	"io"
 	"log/slog"
 	"net/http"
 	"net/url"
 	"strings"
+	"sync/atomic"
 )
 
 func marshalUnionValue(dst *json.RawMessage, value any) error {
@@ -70,7 +72,7 @@ func newOutputFormat[S core.TaskAgentMessage, K any, T core.TaskSpec[S, K]]() (*
 func (c *OpencodeAgent[S, K, T]) createSession() (Session, error) {
 	slog.Info("req /session", "action", "create")
 
-	title := fmt.Sprintf("analyze_%d", c.requestCounter)
+	title := fmt.Sprintf("analyze_%d", atomic.AddUint64(&c.requestCounter, 1)-1)
 	body := SessionCreateJSONBody{Title: &title}
 
 	var session Session
@@ -78,7 +80,6 @@ func (c *OpencodeAgent[S, K, T]) createSession() (Session, error) {
 		return Session{}, err
 	}
 
-	c.requestCounter++
 	return session, nil
 }
 
@@ -122,12 +123,63 @@ func (c *OpencodeAgent[S, K, T]) sendMessage(id string, message string) (Opencod
 }
 
 func (c *OpencodeAgent[S, K, T]) prompt(message string) (OpencodeResult[K], error) {
+	if c.sessionMode == core.TaskAgentSessionModeReusePerClient {
+		return c.promptWithReusableSession(message)
+	}
+
 	session, err := c.createSession()
 	if err != nil {
 		return OpencodeResult[K]{}, err
 	}
 
 	return c.sendMessage(session.Id, message)
+}
+
+func (c *OpencodeAgent[S, K, T]) promptWithReusableSession(message string) (OpencodeResult[K], error) {
+	sessionID, err := c.getOrCreateReusableSessionID()
+	if err != nil {
+		return OpencodeResult[K]{}, err
+	}
+
+	result, err := c.sendMessage(sessionID, message)
+	if err == nil || !isSessionNotFoundError(err) {
+		return result, err
+	}
+
+	c.clearReusableSessionID(sessionID)
+
+	sessionID, err = c.getOrCreateReusableSessionID()
+	if err != nil {
+		return OpencodeResult[K]{}, err
+	}
+
+	return c.sendMessage(sessionID, message)
+}
+
+func (c *OpencodeAgent[S, K, T]) getOrCreateReusableSessionID() (string, error) {
+	c.sessionMu.Lock()
+	defer c.sessionMu.Unlock()
+
+	if c.sessionID != "" {
+		return c.sessionID, nil
+	}
+
+	session, err := c.createSession()
+	if err != nil {
+		return "", err
+	}
+
+	c.sessionID = session.Id
+	return c.sessionID, nil
+}
+
+func (c *OpencodeAgent[S, K, T]) clearReusableSessionID(sessionID string) {
+	c.sessionMu.Lock()
+	defer c.sessionMu.Unlock()
+
+	if c.sessionID == sessionID {
+		c.sessionID = ""
+	}
 }
 
 func (c *OpencodeAgent[S, K, T]) doJSON(method, path string, requestBody any, responseBody any) error {
@@ -194,13 +246,47 @@ func (c *OpencodeAgent[S, K, T]) resolveURL(path string) (string, error) {
 func unexpectedStatusError(method, endpoint string, resp *http.Response) error {
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return fmt.Errorf("%s %s returned %s and response body could not be read: %w", method, endpoint, resp.Status, err)
+		return &statusError{
+			method:     method,
+			endpoint:   endpoint,
+			status:     resp.Status,
+			statusCode: resp.StatusCode,
+			readErr:    err,
+		}
 	}
 
 	message := strings.TrimSpace(string(body))
-	if message == "" {
-		return fmt.Errorf("%s %s returned %s", method, endpoint, resp.Status)
+	return &statusError{
+		method:     method,
+		endpoint:   endpoint,
+		status:     resp.Status,
+		statusCode: resp.StatusCode,
+		message:    message,
+	}
+}
+
+type statusError struct {
+	method     string
+	endpoint   string
+	status     string
+	statusCode int
+	message    string
+	readErr    error
+}
+
+func (e *statusError) Error() string {
+	if e.readErr != nil {
+		return fmt.Sprintf("%s %s returned %s and response body could not be read: %v", e.method, e.endpoint, e.status, e.readErr)
 	}
 
-	return fmt.Errorf("%s %s returned %s: %s", method, endpoint, resp.Status, message)
+	if e.message == "" {
+		return fmt.Sprintf("%s %s returned %s", e.method, e.endpoint, e.status)
+	}
+
+	return fmt.Sprintf("%s %s returned %s: %s", e.method, e.endpoint, e.status, e.message)
+}
+
+func isSessionNotFoundError(err error) bool {
+	var statusErr *statusError
+	return errors.As(err, &statusErr) && statusErr.statusCode == http.StatusNotFound
 }

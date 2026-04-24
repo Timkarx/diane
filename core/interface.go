@@ -2,6 +2,13 @@ package core
 
 import "net/http"
 
+type TaskAgentSessionMode string
+
+const (
+	TaskAgentSessionModeNewPerMessage  TaskAgentSessionMode = "new_per_message"
+	TaskAgentSessionModeReusePerClient TaskAgentSessionMode = "reuse_per_client"
+)
+
 type HealthStatus struct {
 	Healthy bool   `json:"healthy"`
 	Version string `json:"version"`
@@ -20,8 +27,9 @@ type TaskAgentMessage interface {
 }
 
 type TaskAgentOptions struct {
-	BaseUrl    string
-	HTTPClient *http.Client
+	BaseUrl     string
+	HTTPClient  *http.Client
+	SessionMode TaskAgentSessionMode
 }
 
 type TaskAgent[K any, S TaskAgentMessage, T TaskSpec[S, K]] interface {

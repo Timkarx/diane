@@ -4,6 +4,7 @@ import (
 	"github.com/Timkarx/diane/core"
 	"log/slog"
 	"net/http"
+	"sync"
 )
 
 const defaultBaseURL = "http://localhost:4096"
@@ -11,7 +12,10 @@ const defaultBaseURL = "http://localhost:4096"
 type OpencodeAgent[S core.TaskAgentMessage, K any, T core.TaskSpec[S, K]] struct {
 	httpClient     *http.Client
 	baseURL        string
-	requestCounter int
+	requestCounter uint64
+	sessionMode    core.TaskAgentSessionMode
+	sessionMu      sync.Mutex
+	sessionID      string
 	spec           *T
 }
 
@@ -64,8 +68,21 @@ func NewOpenCodeClient[S core.TaskAgentMessage, K any, T core.TaskSpec[S, K]](op
 	}
 
 	return &OpencodeAgent[S, K, T]{
-		httpClient: httpClient,
-		baseURL:    baseURL,
-		spec:       &task,
+		httpClient:  httpClient,
+		baseURL:     baseURL,
+		sessionMode: normalizeSessionMode(opts.SessionMode),
+		spec:        &task,
+	}
+}
+
+func normalizeSessionMode(mode core.TaskAgentSessionMode) core.TaskAgentSessionMode {
+	switch mode {
+	case "", core.TaskAgentSessionModeNewPerMessage:
+		return core.TaskAgentSessionModeNewPerMessage
+	case core.TaskAgentSessionModeReusePerClient:
+		return core.TaskAgentSessionModeReusePerClient
+	default:
+		slog.Warn("unknown opencode session mode, defaulting to new session per message", "mode", mode)
+		return core.TaskAgentSessionModeNewPerMessage
 	}
 }
