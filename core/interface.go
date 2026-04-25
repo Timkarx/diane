@@ -28,6 +28,7 @@ type TaskAgentMessage interface {
 
 type TaskAgentOptions struct {
 	BaseUrl     string
+	Port        int
 	HTTPClient  *http.Client
 	SessionMode TaskAgentSessionMode
 }

@@ -39,6 +39,54 @@ func (scheduleTaskSpec) Schema() core.JSONSchema {
 	}
 }
 
+func TestNewOpenCodeClientDefaultsBaseURLAndPort(t *testing.T) {
+	t.Helper()
+
+	client := NewOpenCodeClient[scheduleTaskMessage, scheduleTaskOutput, scheduleTaskSpec](core.TaskAgentOptions{}, scheduleTaskSpec{})
+
+	if client.baseURL != "http://localhost:4096" {
+		t.Fatalf("baseURL = %q, want %q", client.baseURL, "http://localhost:4096")
+	}
+}
+
+func TestNewOpenCodeClientAppliesConfiguredPortToBaseURL(t *testing.T) {
+	t.Helper()
+
+	client := NewOpenCodeClient[scheduleTaskMessage, scheduleTaskOutput, scheduleTaskSpec](core.TaskAgentOptions{
+		BaseUrl: "http://example.com",
+		Port:    5000,
+	}, scheduleTaskSpec{})
+
+	if client.baseURL != "http://example.com:5000" {
+		t.Fatalf("baseURL = %q, want %q", client.baseURL, "http://example.com:5000")
+	}
+}
+
+func TestNewOpenCodeClientPreservesBaseURLPortWhenPortUnset(t *testing.T) {
+	t.Helper()
+
+	client := NewOpenCodeClient[scheduleTaskMessage, scheduleTaskOutput, scheduleTaskSpec](core.TaskAgentOptions{
+		BaseUrl: "http://example.com:1234",
+	}, scheduleTaskSpec{})
+
+	if client.baseURL != "http://example.com:1234" {
+		t.Fatalf("baseURL = %q, want %q", client.baseURL, "http://example.com:1234")
+	}
+}
+
+func TestNewOpenCodeClientOverridesExistingPortWhenConfigured(t *testing.T) {
+	t.Helper()
+
+	client := NewOpenCodeClient[scheduleTaskMessage, scheduleTaskOutput, scheduleTaskSpec](core.TaskAgentOptions{
+		BaseUrl: "http://example.com:1234",
+		Port:    5000,
+	}, scheduleTaskSpec{})
+
+	if client.baseURL != "http://example.com:5000" {
+		t.Fatalf("baseURL = %q, want %q", client.baseURL, "http://example.com:5000")
+	}
+}
+
 func (scheduleTaskSpec) ShouldAct() bool {
 	return false
 }

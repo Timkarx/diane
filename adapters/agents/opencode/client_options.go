@@ -3,11 +3,15 @@ package opencode
 import (
 	"github.com/Timkarx/diane/core"
 	"log/slog"
+	"net"
 	"net/http"
+	"net/url"
+	"strconv"
 	"sync"
 )
 
-const defaultBaseURL = "http://localhost:4096"
+const defaultBaseURL = "http://localhost"
+const defaultPort = 4096
 
 type OpencodeAgent[S core.TaskAgentMessage, K any, T core.TaskSpec[S, K]] struct {
 	httpClient     *http.Client
@@ -35,6 +39,12 @@ func NewOpenCodeClient[S core.TaskAgentMessage, K any, T core.TaskSpec[S, K]](op
 		baseURL = defaultBaseURL
 	}
 
+	resolvedBaseURL, err := resolveBaseURL(baseURL, opts.Port)
+	if err != nil {
+		slog.Warn("invalid opencode base url, defaulting to localhost", "base_url", baseURL, "port", opts.Port, "error", err)
+		resolvedBaseURL, _ = resolveBaseURL(defaultBaseURL, defaultPort)
+	}
+
 	httpClient := opts.HTTPClient
 	if httpClient == nil {
 		httpClient = http.DefaultClient
@@ -42,10 +52,41 @@ func NewOpenCodeClient[S core.TaskAgentMessage, K any, T core.TaskSpec[S, K]](op
 
 	return &OpencodeAgent[S, K, T]{
 		httpClient:  httpClient,
-		baseURL:     baseURL,
+		baseURL:     resolvedBaseURL,
 		sessionMode: normalizeSessionMode(opts.SessionMode),
 		spec:        &task,
 	}
+}
+
+func resolveBaseURL(baseURL string, port int) (string, error) {
+	parsed, err := url.Parse(baseURL)
+	if err != nil {
+		return "", err
+	}
+
+	if parsed.Scheme == "" {
+		parsed, err = url.Parse("http://" + baseURL)
+		if err != nil {
+			return "", err
+		}
+	}
+
+	resolvedPort := port
+	if resolvedPort == 0 {
+		if parsed.Port() == "" {
+			resolvedPort = defaultPort
+		}
+	}
+
+	if resolvedPort != 0 {
+		host := parsed.Hostname()
+		if host == "" {
+			host = parsed.Host
+		}
+		parsed.Host = net.JoinHostPort(host, strconv.Itoa(resolvedPort))
+	}
+
+	return parsed.String(), nil
 }
 
 func normalizeSessionMode(mode core.TaskAgentSessionMode) core.TaskAgentSessionMode {
