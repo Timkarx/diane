@@ -107,6 +107,18 @@ func (c *OpencodeAgent[S, K, T]) sendMessage(id string, message string) (Opencod
 		Parts: []SessionPromptJSONBody_Parts_Item{part},
 	}
 
+	agent, model := c.promptOptions()
+	body.Agent = agent
+	if model != nil {
+		body.Model = &struct {
+			ModelID    string `json:"modelID"`
+			ProviderID string `json:"providerID"`
+		}{
+			ModelID:    model.modelID,
+			ProviderID: model.providerID,
+		}
+	}
+
 	format, err := newOutputFormat[S, K, T]()
 	if err != nil {
 		return OpencodeResult[K]{}, err
