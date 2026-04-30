@@ -182,7 +182,7 @@ func main() {
 		Link:    "http://example.org",
 		Photos:  []string{},
 	}
-	client.ScheduleTask(msg)
+	client.ScheduleTask(msg, false)
 
 	os.Exit(0)
 }
