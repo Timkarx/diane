@@ -17,12 +17,15 @@ func (c *OpencodeAgent[S, K, T]) CheckHealth() (core.HealthStatus, error) {
 	return health, nil
 }
 
-func (c *OpencodeAgent[S, K, T]) ScheduleTask(message S) (K, error) {
+func (c *OpencodeAgent[S, K, T]) ScheduleTask(message S, debug bool) (K, error) {
 	res, err := c.prompt(message.ToText())
 	if err != nil {
 		slog.Error("schedule task failed", "error", err)
 		var zero K
 		return zero, err
+	}
+	if debug {
+		res.DebugPrint()
 	}
 
 	structured, err := res.Structured()
